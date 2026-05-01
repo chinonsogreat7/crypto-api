@@ -59,7 +59,7 @@ Use the root-level `render.yaml` Blueprint in this repo.
 Render service settings:
 
 ```text
-Build command: npm install && cp prisma/schema.postgres.prisma prisma/schema.prisma && npx prisma generate && npx prisma db push && npm run build
+Build command: npm ci --include=dev && cp prisma/schema.postgres.prisma prisma/schema.prisma && npx prisma generate && npx prisma db push && npm run build
 Start command: npm start
 Health check path: /health
 ```
