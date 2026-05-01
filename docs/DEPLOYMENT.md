@@ -59,14 +59,18 @@ Use the root-level `render.yaml` Blueprint in this repo.
 Render service settings:
 
 ```text
+Branch: main
 Build command: npm ci --include=dev && npm run render-build
 Start command: npm start
 Health check path: /health
+Auto-Deploy: On Commit
 ```
 
 After creating the service, set `DATABASE_URL` in Render environment variables.
 
 If Render logs show `Cannot find module '/opt/render/project/src/dist/src/server.js'`, the service is only installing dependencies and is not compiling TypeScript. Update the Render Build Command to the value above, then redeploy.
+
+With `autoDeployTrigger: commit` in `render.yaml`, Render deploys automatically whenever a commit is pushed to the linked `main` branch. If the service was created manually instead of from the Blueprint, enable this in the Render Dashboard under **Settings > Auto-Deploy > On Commit**.
 
 ## 5. Seed Demo Data
 
