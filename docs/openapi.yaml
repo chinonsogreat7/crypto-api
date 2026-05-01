@@ -1,0 +1,369 @@
+openapi: 3.0.3
+info:
+  title: Crypto Trade API
+  version: 1.0.0
+  description: Sandbox crypto trading API for students. Covers market data, wallets, buy, sell, swap, transactions, KYC, and admin operations.
+servers:
+  - url: http://localhost:4200
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      security: []
+      summary: Check server health
+      responses:
+        "200":
+          description: API status
+  /auth/register:
+    post:
+      security: []
+      summary: Register a customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullName, email, phone, password]
+              properties:
+                fullName:
+                  type: string
+                email:
+                  type: string
+                  example: student@cryptoclass.test
+                phone:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "201":
+          description: User and token
+  /auth/login:
+    post:
+      security: []
+      summary: Log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  example: student@cryptoclass.test
+                password:
+                  type: string
+                  example: password123
+      responses:
+        "200":
+          description: User and token
+  /auth/otp/request:
+    post:
+      security: []
+      summary: Request demo OTP
+      responses:
+        "200":
+          description: Demo OTP code
+  /auth/otp/verify:
+    post:
+      security: []
+      summary: Verify demo OTP
+      responses:
+        "200":
+          description: Verification result
+  /auth/kyc:
+    post:
+      summary: Submit KYC for review
+      responses:
+        "201":
+          description: KYC submission
+  /market/assets:
+    get:
+      security: []
+      summary: List supported crypto assets
+      responses:
+        "200":
+          description: Asset list
+  /market/assets/{symbol}:
+    get:
+      security: []
+      summary: Get asset details and demo chart data
+      parameters:
+        - $ref: "#/components/parameters/Symbol"
+      responses:
+        "200":
+          description: Asset details
+  /market/trending:
+    get:
+      security: []
+      summary: List trending assets
+      responses:
+        "200":
+          description: Trending assets
+  /me:
+    get:
+      summary: Get current profile
+      responses:
+        "200":
+          description: Current user
+    patch:
+      summary: Update current profile
+      responses:
+        "200":
+          description: Updated user
+  /me/settings:
+    get:
+      summary: Get user settings
+      responses:
+        "200":
+          description: Settings
+    patch:
+      summary: Update user settings
+      responses:
+        "200":
+          description: Updated settings
+  /me/pin:
+    patch:
+      summary: Update transaction PIN
+      responses:
+        "200":
+          description: PIN updated
+  /me/watchlist:
+    get:
+      summary: List watchlist assets
+      responses:
+        "200":
+          description: Watchlist assets
+  /me/watchlist/{symbol}:
+    post:
+      summary: Add asset to watchlist
+      parameters:
+        - $ref: "#/components/parameters/Symbol"
+      responses:
+        "200":
+          description: Updated watchlist symbols
+    delete:
+      summary: Remove asset from watchlist
+      parameters:
+        - $ref: "#/components/parameters/Symbol"
+      responses:
+        "200":
+          description: Updated watchlist symbols
+  /me/notifications:
+    get:
+      summary: List user notifications
+      responses:
+        "200":
+          description: Notifications
+  /me/notifications/{notificationId}/read:
+    patch:
+      summary: Mark one notification as read
+      parameters:
+        - in: path
+          name: notificationId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated notification
+  /me/notifications/read-all:
+    patch:
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: Update status
+  /wallet:
+    get:
+      summary: Get wallet balances and portfolio value
+      responses:
+        "200":
+          description: Wallet
+  /wallet/deposit-addresses:
+    get:
+      summary: List deposit addresses
+      responses:
+        "200":
+          description: Deposit addresses
+  /wallet/deposit-addresses/{symbol}:
+    get:
+      summary: Get a deposit address and QR payload
+      parameters:
+        - $ref: "#/components/parameters/Symbol"
+      responses:
+        "200":
+          description: Deposit address
+  /wallet/transactions:
+    get:
+      summary: List user transactions
+      responses:
+        "200":
+          description: Transaction list
+  /wallet/transactions/{transactionId}:
+    get:
+      summary: Get transaction details
+      parameters:
+        - in: path
+          name: transactionId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transaction detail
+  /wallet/deposit/simulate:
+    post:
+      summary: Simulate a sandbox USD deposit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  type: number
+                  example: 500
+      responses:
+        "201":
+          description: Deposit transaction
+  /wallet/withdrawals:
+    post:
+      summary: Request a withdrawal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetSymbol, amount, address, network]
+              properties:
+                assetSymbol:
+                  type: string
+                  example: ETH
+                amount:
+                  type: number
+                  example: 0.05
+                address:
+                  type: string
+                network:
+                  type: string
+      responses:
+        "201":
+          description: Withdrawal request
+  /trade/quotes:
+    post:
+      summary: Create a buy, sell, or swap quote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, fromAsset, toAsset, fromAmount]
+              properties:
+                type:
+                  type: string
+                  enum: [buy, sell, swap]
+                  example: swap
+                fromAsset:
+                  type: string
+                  example: ETH
+                toAsset:
+                  type: string
+                  example: USDC
+                fromAmount:
+                  type: number
+                  example: 0.1
+      responses:
+        "201":
+          description: Quote
+  /trade/execute:
+    post:
+      summary: Execute a quote with transaction PIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quoteId, pin]
+              properties:
+                quoteId:
+                  type: string
+                pin:
+                  type: string
+                  example: "1234"
+      responses:
+        "201":
+          description: Completed sandbox trade
+  /admin/dashboard:
+    get:
+      summary: Admin metrics
+      responses:
+        "200":
+          description: Dashboard metrics
+  /admin/users:
+    get:
+      summary: List customers
+      responses:
+        "200":
+          description: Customers
+  /admin/kyc:
+    get:
+      summary: List KYC submissions
+      responses:
+        "200":
+          description: KYC submissions
+  /admin/kyc/{kycId}:
+    patch:
+      summary: Approve or reject KYC
+      parameters:
+        - in: path
+          name: kycId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reviewed KYC
+  /admin/withdrawals:
+    get:
+      summary: List withdrawal requests
+      responses:
+        "200":
+          description: Withdrawals
+  /admin/assets:
+    get:
+      summary: List managed assets
+      responses:
+        "200":
+          description: Assets
+  /admin/fees:
+    get:
+      summary: Get trading fee settings
+      responses:
+        "200":
+          description: Fee settings
+    patch:
+      summary: Update trading fee settings
+      responses:
+        "200":
+          description: Fee settings
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    Symbol:
+      in: path
+      name: symbol
+      required: true
+      schema:
+        type: string
+      example: BTC

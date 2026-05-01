@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CryptoClass Admin</title>
+    <link rel="stylesheet" href="/admin-ui/styles.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">C</div>
+        <div>
+          <strong>CryptoClass</strong>
+          <span>Admin Console</span>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Admin sections">
+        <button class="nav-item active" data-view="overview" type="button">Overview</button>
+        <button class="nav-item" data-view="users" type="button">Users</button>
+        <button class="nav-item" data-view="kyc" type="button">KYC</button>
+        <button class="nav-item" data-view="withdrawals" type="button">Withdrawals</button>
+        <button class="nav-item" data-view="transactions" type="button">Transactions</button>
+        <button class="nav-item" data-view="assets" type="button">Assets</button>
+        <button class="nav-item" data-view="fees" type="button">Fees</button>
+      </nav>
+    </aside>
+
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Sandbox Operations</p>
+          <h1 id="view-title">Overview</h1>
+        </div>
+        <div class="topbar-actions">
+          <label class="token-field">
+            <span>Admin token</span>
+            <input id="token-input" type="password" autocomplete="off" value="demo-admin-token" />
+          </label>
+          <button id="refresh-button" class="icon-button" type="button" title="Refresh data" aria-label="Refresh data">
+            <span aria-hidden="true">↻</span>
+          </button>
+        </div>
+      </header>
+
+      <section id="alert" class="alert hidden" role="status"></section>
+
+      <section id="overview-view" class="view active">
+        <div id="metric-grid" class="metric-grid"></div>
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Operational Queue</h2>
+              <p>KYC and withdrawal items that need attention.</p>
+            </div>
+          </div>
+          <div id="queue-summary" class="queue-grid"></div>
+        </div>
+      </section>
+
+      <section id="users-view" class="view">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Users</h2>
+              <p>Customer account, verification, and portfolio overview.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>KYC</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody id="users-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="kyc-view" class="view">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>KYC Reviews</h2>
+              <p>Approve or reject identity submissions.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Legal name</th>
+                  <th>Country</th>
+                  <th>Document</th>
+                  <th>Status</th>
+                  <th>Submitted</th>
+                  <th class="actions-cell">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="kyc-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="withdrawals-view" class="view">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Withdrawals</h2>
+              <p>Review pending crypto withdrawal requests.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Asset</th>
+                  <th>Amount</th>
+                  <th>Network</th>
+                  <th>Status</th>
+                  <th>Address</th>
+                  <th class="actions-cell">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="withdrawals-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="transactions-view" class="view">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Transactions</h2>
+              <p>Sandbox trade, deposit, and withdrawal ledger.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Reference</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Fee</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="transactions-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="assets-view" class="view">
+        <div class="split">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Assets</h2>
+                <p>Supported coins and trading limits.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Asset</th>
+                    <th>Network</th>
+                    <th>Price</th>
+                    <th>24h</th>
+                    <th>Active</th>
+                  </tr>
+                </thead>
+                <tbody id="assets-table"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <form id="asset-form" class="panel form-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Add Asset</h2>
+                <p>Add a sandbox asset for lessons.</p>
+              </div>
+            </div>
+            <label>
+              <span>Symbol</span>
+              <input name="symbol" placeholder="LINK" required />
+            </label>
+            <label>
+              <span>Name</span>
+              <input name="name" placeholder="Chainlink" required />
+            </label>
+            <label>
+              <span>Network</span>
+              <input name="network" placeholder="Ethereum" required />
+            </label>
+            <label>
+              <span>Price USD</span>
+              <input name="priceUsd" type="number" min="0" step="0.01" placeholder="18.40" required />
+            </label>
+            <button class="primary-button" type="submit">Add asset</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="fees-view" class="view">
+        <form id="fees-form" class="panel form-grid-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Fee Settings</h2>
+              <p>Configure sandbox trading fees and spread.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span>Buy fee %</span>
+              <input name="buyFeePercent" type="number" min="0" step="0.1" />
+            </label>
+            <label>
+              <span>Sell fee %</span>
+              <input name="sellFeePercent" type="number" min="0" step="0.1" />
+            </label>
+            <label>
+              <span>Swap fee %</span>
+              <input name="swapFeePercent" type="number" min="0" step="0.1" />
+            </label>
+            <label>
+              <span>Withdrawal flat USD</span>
+              <input name="withdrawalFlatUsd" type="number" min="0" step="0.1" />
+            </label>
+            <label>
+              <span>Spread %</span>
+              <input name="spreadPercent" type="number" min="0" step="0.1" />
+            </label>
+          </div>
+          <button class="primary-button" type="submit">Save fees</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="/admin-ui/app.js"></script>
+  </body>
+</html>

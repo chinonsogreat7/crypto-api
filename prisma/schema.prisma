@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id
+  role           String
+  fullName       String
+  email          String   @unique
+  phone          String
+  password       String
+  pin            String
+  kycStatus      String
+  avatarUrl      String?
+  watchlist      String
+  settings       String
+  createdAt      DateTime
+  sessions       Session[]
+  wallet         Wallet?
+  transactions   Transaction[]
+  kycSubmissions KycSubmission[]
+  withdrawals    WithdrawalRequest[]
+  notifications  Notification[]
+}
+
+model Session {
+  token  String @id
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id          String  @id
+  symbol      String  @unique
+  name        String
+  network     String
+  priceUsd    Float
+  change24h   Float
+  isActive    Boolean
+  minBuyUsd   Float
+  minSellUsd  Float
+  iconUrl     String
+}
+
+model Wallet {
+  id               String           @id
+  userId           String           @unique
+  fiatCurrency     String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balances         WalletBalance[]
+  depositAddresses DepositAddress[]
+}
+
+model WalletBalance {
+  id          String @id
+  walletId    String
+  assetSymbol String
+  available   Float
+  locked      Float
+  wallet      Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@unique([walletId, assetSymbol])
+}
+
+model DepositAddress {
+  id          String @id
+  walletId    String
+  assetSymbol String
+  network     String
+  address     String
+  qrPayload   String
+  wallet      Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@unique([walletId, assetSymbol, network])
+}
+
+model Quote {
+  id         String   @id
+  type       String
+  fromAsset  String
+  toAsset    String
+  fromAmount Float
+  toAmount   Float
+  rate       Float
+  feeAmount  Float
+  expiresAt  DateTime
+}
+
+model Transaction {
+  id          String    @id
+  userId      String
+  type        String
+  status      String
+  fromAsset   String
+  toAsset     String
+  fromAmount  Float
+  toAmount    Float
+  feeAmount   Float
+  rate        Float
+  reference   String
+  note        String?
+  createdAt   DateTime
+  completedAt DateTime?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model KycSubmission {
+  id             String    @id
+  userId         String
+  legalName      String
+  country        String
+  documentType   String
+  documentNumber String
+  status         String
+  submittedAt    DateTime
+  reviewedAt     DateTime?
+  reviewerNote   String?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WithdrawalRequest {
+  id             String    @id
+  userId         String
+  assetSymbol    String
+  amount         Float
+  feeAssetAmount Float
+  address        String
+  network        String
+  status         String
+  createdAt      DateTime
+  reviewedAt     DateTime?
+  reviewerNote   String?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id
+  userId    String
+  title     String
+  body      String
+  type      String
+  isRead    Boolean
+  createdAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FeeSettings {
+  id                 String @id
+  buyFeePercent      Float
+  sellFeePercent     Float
+  swapFeePercent     Float
+  withdrawalFlatUsd  Float
+  spreadPercent      Float
+}

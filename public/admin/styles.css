@@ -1,0 +1,425 @@
+:root {
+  color-scheme: light;
+  --bg: #f4f7fb;
+  --panel: #ffffff;
+  --ink: #111827;
+  --muted: #64748b;
+  --line: #d9e2ec;
+  --soft: #eef3f8;
+  --brand: #1f7a8c;
+  --brand-dark: #14515d;
+  --ok: #087f5b;
+  --warn: #b7791f;
+  --bad: #b42318;
+  --pending: #5b5fc7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.sidebar {
+  background: #102a43;
+  color: #f8fafc;
+  min-height: 100vh;
+  padding: 24px 18px;
+  position: sticky;
+  top: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  background: #38bdf8;
+  color: #082f49;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.brand strong,
+.brand span {
+  display: block;
+}
+
+.brand span {
+  color: #bcccdc;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.nav {
+  display: grid;
+  gap: 6px;
+}
+
+.nav-item {
+  border: 0;
+  background: transparent;
+  color: #d9e2ec;
+  text-align: left;
+  padding: 11px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  background: #243b53;
+  color: #ffffff;
+}
+
+.shell {
+  padding: 24px;
+  min-width: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.eyebrow {
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: 18px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.token-field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.token-field input,
+.form-panel input,
+.form-grid input {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--ink);
+  min-height: 40px;
+  padding: 0 11px;
+}
+
+.token-field input {
+  width: 230px;
+}
+
+.icon-button,
+.primary-button,
+.table-button {
+  border: 0;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.icon-button {
+  width: 40px;
+  height: 40px;
+  background: var(--brand);
+  color: white;
+  font-size: 22px;
+}
+
+.primary-button {
+  min-height: 42px;
+  padding: 0 16px;
+  background: var(--brand);
+  color: white;
+  font-weight: 700;
+}
+
+.primary-button:hover,
+.icon-button:hover {
+  background: var(--brand-dark);
+}
+
+.table-button {
+  min-height: 32px;
+  padding: 0 10px;
+  background: var(--soft);
+  color: var(--ink);
+  margin-left: 6px;
+}
+
+.table-button.approve {
+  background: #d8f3dc;
+  color: var(--ok);
+}
+
+.table-button.reject {
+  background: #ffe3e0;
+  color: var(--bad);
+}
+
+.alert {
+  border: 1px solid var(--line);
+  background: #e6f6ff;
+  color: #0b4f6c;
+  padding: 12px 14px;
+  border-radius: 6px;
+  margin-bottom: 18px;
+}
+
+.alert.error {
+  background: #fff1f0;
+  color: var(--bad);
+}
+
+.hidden {
+  display: none;
+}
+
+.view {
+  display: none;
+}
+
+.view.active {
+  display: block;
+}
+
+.metric-grid,
+.queue-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.metric-grid {
+  margin-bottom: 16px;
+}
+
+.metric,
+.queue-item,
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.metric,
+.queue-item {
+  padding: 16px;
+}
+
+.metric span,
+.queue-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.metric strong,
+.queue-item strong {
+  font-size: 26px;
+}
+
+.panel {
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-header p {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 760px;
+}
+
+th,
+td {
+  padding: 13px 18px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+th {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  background: #fbfdff;
+}
+
+td {
+  font-size: 14px;
+}
+
+.actions-cell {
+  text-align: right;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.status.approved,
+.status.completed,
+.status.active {
+  background: #d8f3dc;
+  color: var(--ok);
+}
+
+.status.pending,
+.status.requires_review {
+  background: #e7e9ff;
+  color: var(--pending);
+}
+
+.status.rejected,
+.status.failed,
+.status.cancelled,
+.status.inactive {
+  background: #ffe3e0;
+  color: var(--bad);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 16px;
+}
+
+.form-panel,
+.form-grid-panel {
+  padding-bottom: 18px;
+}
+
+.form-panel label,
+.form-grid label {
+  display: grid;
+  gap: 6px;
+  padding: 0 18px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.form-panel .primary-button,
+.form-grid-panel .primary-button {
+  margin: 18px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px 0;
+  padding-top: 4px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@media (max-width: 980px) {
+  body {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    min-height: auto;
+  }
+
+  .nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .topbar,
+  .topbar-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .token-field input {
+    width: 100%;
+  }
+
+  .metric-grid,
+  .queue-grid,
+  .split,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}

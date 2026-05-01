@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: crypto-api
+    runtime: node
+    plan: free
+    buildCommand: npm install && cp prisma/schema.postgres.prisma prisma/schema.prisma && npx prisma generate && npx prisma db push && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
