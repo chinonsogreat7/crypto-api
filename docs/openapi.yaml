@@ -4,7 +4,10 @@ info:
   version: 1.0.0
   description: Sandbox crypto trading API for students. Covers market data, wallets, buy, sell, swap, transactions, KYC, and admin operations.
 servers:
+  - url: /
+    description: Current API host
   - url: http://localhost:4200
+    description: Local development
 security:
   - bearerAuth: []
 paths:
@@ -313,6 +316,18 @@ paths:
       responses:
         "200":
           description: Customers
+  /admin/users/{userId}:
+    get:
+      summary: Get customer detail, wallet, and transactions
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Customer detail
   /admin/kyc:
     get:
       summary: List KYC submissions
@@ -328,21 +343,109 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [approved, rejected]
+                  example: approved
+                reviewerNote:
+                  type: string
+                  example: Approved for classroom demo.
       responses:
         "200":
           description: Reviewed KYC
+  /admin/transactions:
+    get:
+      summary: List all transactions
+      responses:
+        "200":
+          description: Transactions
   /admin/withdrawals:
     get:
       summary: List withdrawal requests
       responses:
         "200":
           description: Withdrawals
+  /admin/withdrawals/{withdrawalId}:
+    patch:
+      summary: Approve or reject a withdrawal
+      parameters:
+        - in: path
+          name: withdrawalId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [approved, rejected]
+                  example: approved
+                reviewerNote:
+                  type: string
+                  example: Approved after review.
+      responses:
+        "200":
+          description: Reviewed withdrawal
   /admin/assets:
     get:
       summary: List managed assets
       responses:
         "200":
           description: Assets
+    post:
+      summary: Add a managed asset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbol, name, network, priceUsd]
+              properties:
+                symbol:
+                  type: string
+                  example: SOL
+                name:
+                  type: string
+                  example: Solana
+                network:
+                  type: string
+                  example: Solana Devnet
+                priceUsd:
+                  type: number
+                  example: 142.25
+                change24h:
+                  type: number
+                  example: 2.4
+                isActive:
+                  type: boolean
+                  example: true
+                minBuyUsd:
+                  type: number
+                  example: 10
+                minSellUsd:
+                  type: number
+                  example: 10
+                iconUrl:
+                  type: string
+                  example: /assets/sol.svg
+      responses:
+        "201":
+          description: Created asset
   /admin/fees:
     get:
       summary: Get trading fee settings
@@ -351,6 +454,28 @@ paths:
           description: Fee settings
     patch:
       summary: Update trading fee settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                buyFeePercent:
+                  type: number
+                  example: 1
+                sellFeePercent:
+                  type: number
+                  example: 1.2
+                swapFeePercent:
+                  type: number
+                  example: 0.8
+                withdrawalFlatUsd:
+                  type: number
+                  example: 2
+                spreadPercent:
+                  type: number
+                  example: 0.4
       responses:
         "200":
           description: Fee settings

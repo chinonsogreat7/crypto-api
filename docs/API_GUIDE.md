@@ -4,9 +4,19 @@ This guide explains the API in the same language students will use while buildin
 
 ## Base URL
 
+Local development:
+
 ```http
 http://localhost:4200
 ```
+
+Hosted Render deployment:
+
+```http
+https://YOUR-RENDER-SERVICE.onrender.com
+```
+
+Interactive Swagger documentation is available at `/docs` on either base URL. The raw OpenAPI file is available at `/openapi.yaml`.
 
 ## Authentication
 
