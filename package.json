@@ -9,6 +9,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "dev": "tsx watch src/server.ts",
     "prisma:studio": "prisma studio",
+    "render-build": "cp prisma/schema.postgres.prisma prisma/schema.prisma && npx prisma generate && npx prisma db push && npm run build",
     "start": "node dist/src/server.js",
     "smoke": "tsx scripts/smoke-test.ts",
     "typecheck": "tsc --noEmit"

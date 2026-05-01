@@ -59,12 +59,14 @@ Use the root-level `render.yaml` Blueprint in this repo.
 Render service settings:
 
 ```text
-Build command: npm ci --include=dev && cp prisma/schema.postgres.prisma prisma/schema.prisma && npx prisma generate && npx prisma db push && npm run build
+Build command: npm ci --include=dev && npm run render-build
 Start command: npm start
 Health check path: /health
 ```
 
 After creating the service, set `DATABASE_URL` in Render environment variables.
+
+If Render logs show `Cannot find module '/opt/render/project/src/dist/src/server.js'`, the service is only installing dependencies and is not compiling TypeScript. Update the Render Build Command to the value above, then redeploy.
 
 ## 5. Seed Demo Data
 
