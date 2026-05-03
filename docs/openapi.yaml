@@ -105,6 +105,33 @@ paths:
   /auth/kyc:
     post:
       summary: Submit KYC for review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [legalName, country, documentType, documentNumber]
+              properties:
+                legalName:
+                  type: string
+                  example: Ada Student
+                country:
+                  type: string
+                  example: Nigeria
+                documentType:
+                  type: string
+                  enum: [national_id, passport, drivers_license]
+                  example: national_id
+                documentNumber:
+                  type: string
+                  example: NIN-000-000
+                selfieImageUrl:
+                  type: string
+                  example: https://example.com/uploads/ada-selfie.jpg
+                documentImageUrl:
+                  type: string
+                  example: https://example.com/uploads/ada-national-id.jpg
       responses:
         "201":
           description: KYC submission
@@ -812,6 +839,8 @@ components:
           country: Nigeria
           documentType: national_id
           documentNumber: NIN-000-000
+          selfieImageUrl: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=240&h=240&fit=crop&crop=faces
+          documentImageUrl: https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=480&h=300&fit=crop
           status: pending
           submittedAt: "2026-05-03T14:05:00.000Z"
           reviewedAt: null
@@ -1242,6 +1271,8 @@ components:
             country: Nigeria
             documentType: national_id
             documentNumber: NIN-000-000
+            selfieImageUrl: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=240&h=240&fit=crop&crop=faces
+            documentImageUrl: https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=480&h=300&fit=crop
             status: pending
             submittedAt: "2026-05-03T14:05:00.000Z"
             reviewedAt: null

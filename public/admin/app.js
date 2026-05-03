@@ -252,11 +252,20 @@ function renderKyc() {
           ? `<button class="table-button approve" data-action="kyc" data-status="approved" data-id="${item.id}" type="button">Approve</button>
              <button class="table-button reject" data-action="kyc" data-status="rejected" data-id="${item.id}" type="button">Reject</button>`
           : `<span class="muted">Reviewed</span>`;
+      const photo = item.selfieImageUrl
+        ? `<a class="kyc-photo-link" href="${safe(item.selfieImageUrl)}" target="_blank" rel="noreferrer">
+             <img class="kyc-photo" src="${safe(item.selfieImageUrl)}" alt="${safe(item.legalName)} selfie" />
+           </a>`
+        : `<span class="muted">No photo</span>`;
+      const documentLink = item.documentImageUrl
+        ? `<br><a class="inline-link" href="${safe(item.documentImageUrl)}" target="_blank" rel="noreferrer">View image</a>`
+        : "";
 
       return `<tr>
         <td><strong>${safe(item.legalName)}</strong></td>
+        <td>${photo}</td>
         <td>${safe(item.country)}</td>
-        <td>${safe(item.documentType)} <span class="mono">${safe(item.documentNumber)}</span></td>
+        <td>${safe(item.documentType)} <span class="mono">${safe(item.documentNumber)}</span>${documentLink}</td>
         <td>${statusChip(item.status)}</td>
         <td>${date(item.submittedAt)}</td>
         <td class="actions-cell">${actions}</td>

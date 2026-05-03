@@ -386,6 +386,33 @@ td {
   text-align: right;
 }
 
+.kyc-photo-link {
+  display: inline-flex;
+}
+
+.kyc-photo {
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  height: 48px;
+  object-fit: cover;
+  width: 48px;
+}
+
+.inline-link {
+  color: var(--brand);
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 800;
+  margin-top: 4px;
+  text-decoration: none;
+}
+
+.inline-link:hover {
+  color: var(--brand-dark);
+  text-decoration: underline;
+}
+
 .status {
   display: inline-flex;
   align-items: center;

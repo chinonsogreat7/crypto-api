@@ -144,6 +144,8 @@ export async function loadDatabase(): Promise<Database> {
       country: kyc.country,
       documentType: kyc.documentType as "national_id" | "passport" | "drivers_license",
       documentNumber: kyc.documentNumber,
+      selfieImageUrl: kyc.selfieImageUrl,
+      documentImageUrl: kyc.documentImageUrl,
       status: kyc.status as KycStatus,
       submittedAt: kyc.submittedAt.toISOString(),
       reviewedAt: toIso(kyc.reviewedAt),

@@ -27,6 +27,8 @@ interface KycBody {
   country?: string;
   documentType?: "national_id" | "passport" | "drivers_license";
   documentNumber?: string;
+  selfieImageUrl?: string;
+  documentImageUrl?: string;
 }
 
 authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res) => {
@@ -133,7 +135,7 @@ authRouter.post("/otp/verify", (req: Request<unknown, unknown, VerifyOtpBody>, r
 });
 
 authRouter.post("/kyc", (req: Request<unknown, unknown, KycBody>, res) => {
-  const { legalName, country, documentType, documentNumber } = req.body;
+  const { legalName, country, documentType, documentNumber, selfieImageUrl, documentImageUrl } = req.body;
   const token = (req.get("authorization") || "").replace("Bearer ", "");
   const session = db.sessions.find((item) => item.token === token);
   const user = session ? db.users.find((item) => item.id === session.userId) : null;
@@ -146,6 +148,10 @@ authRouter.post("/kyc", (req: Request<unknown, unknown, KycBody>, res) => {
     return badRequest(res, "legalName, country, documentType, and documentNumber are required.");
   }
 
+  if ((selfieImageUrl && !URL.canParse(selfieImageUrl)) || (documentImageUrl && !URL.canParse(documentImageUrl))) {
+    return badRequest(res, "selfieImageUrl and documentImageUrl must be valid URLs when provided.", "INVALID_KYC_IMAGE_URL");
+  }
+
   const submission: KycSubmission = {
     id: createId("kyc"),
     userId: user.id,
@@ -153,6 +159,8 @@ authRouter.post("/kyc", (req: Request<unknown, unknown, KycBody>, res) => {
     country,
     documentType,
     documentNumber,
+    selfieImageUrl: selfieImageUrl || null,
+    documentImageUrl: documentImageUrl || null,
     status: "pending",
     submittedAt: new Date().toISOString(),
     reviewedAt: null,

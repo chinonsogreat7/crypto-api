@@ -142,9 +142,13 @@ Content-Type: application/json
   "legalName": "Ada Student",
   "country": "Nigeria",
   "documentType": "national_id",
-  "documentNumber": "NIN-000-000"
+  "documentNumber": "NIN-000-000",
+  "selfieImageUrl": "https://example.com/uploads/ada-selfie.jpg",
+  "documentImageUrl": "https://example.com/uploads/ada-national-id.jpg"
 }
 ```
+
+`selfieImageUrl` and `documentImageUrl` are optional URL fields for classroom demos. In a production app, these would normally come from a secure upload service instead of arbitrary public URLs.
 
 The user cannot execute trades until KYC is approved. For the classroom demo, approve it with:
 

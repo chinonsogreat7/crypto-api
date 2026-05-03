@@ -129,6 +129,8 @@ export interface KycSubmission {
   country: string;
   documentType: "national_id" | "passport" | "drivers_license";
   documentNumber: string;
+  selfieImageUrl: string | null;
+  documentImageUrl: string | null;
   status: KycStatus;
   submittedAt: string;
   reviewedAt: string | null;

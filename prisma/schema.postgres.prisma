@@ -117,6 +117,8 @@ model KycSubmission {
   country        String
   documentType   String
   documentNumber String
+  selfieImageUrl String?
+  documentImageUrl String?
   status         String
   submittedAt    DateTime
   reviewedAt     DateTime?

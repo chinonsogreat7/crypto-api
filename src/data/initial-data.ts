@@ -296,6 +296,8 @@ export const initialData: Database = {
       country: "Nigeria",
       documentType: "national_id",
       documentNumber: "NIN-000-000",
+      selfieImageUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=240&h=240&fit=crop&crop=faces",
+      documentImageUrl: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=480&h=300&fit=crop",
       status: "pending",
       submittedAt: now,
       reviewedAt: null,

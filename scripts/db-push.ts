@@ -105,6 +105,8 @@ CREATE TABLE IF NOT EXISTS "KycSubmission" (
   "country" TEXT NOT NULL,
   "documentType" TEXT NOT NULL,
   "documentNumber" TEXT NOT NULL,
+  "selfieImageUrl" TEXT,
+  "documentImageUrl" TEXT,
   "status" TEXT NOT NULL,
   "submittedAt" DATETIME NOT NULL,
   "reviewedAt" DATETIME,
@@ -158,18 +160,33 @@ CREATE TABLE IF NOT EXISTS "FeeSettings" (
 );
 `;
 
-const result = spawnSync("sqlite3", [databasePath], {
-  input: sql,
-  encoding: "utf8"
-});
+function runSql(input: string): string {
+  const result = spawnSync("sqlite3", [databasePath], {
+    input,
+    encoding: "utf8"
+  });
 
-if (result.error) {
-  throw result.error;
+  if (result.error) {
+    throw result.error;
+  }
+
+  if (result.status !== 0) {
+    console.error(result.stderr);
+    process.exit(result.status ?? 1);
+  }
+
+  return result.stdout.trim();
 }
 
-if (result.status !== 0) {
-  console.error(result.stderr);
-  process.exit(result.status ?? 1);
+function addColumnIfMissing(table: string, column: string, definition: string): void {
+  const existing = runSql(`SELECT name FROM pragma_table_info('${table}') WHERE name = '${column}';`);
+  if (!existing) {
+    runSql(`ALTER TABLE "${table}" ADD COLUMN "${column}" ${definition};`);
+  }
 }
+
+runSql(sql);
+addColumnIfMissing("KycSubmission", "selfieImageUrl", "TEXT");
+addColumnIfMissing("KycSubmission", "documentImageUrl", "TEXT");
 
 console.log(`SQLite schema ready at ${databasePath}`);
