@@ -1,5 +1,7 @@
 const state = {
   view: "overview",
+  adminToken: window.sessionStorage.getItem("cryptoclass_admin_token") || "",
+  adminUser: null,
   dashboard: null,
   users: [],
   kyc: [],
@@ -21,19 +23,22 @@ const titleByView = {
   fees: "Fee Settings"
 };
 
-const tokenInput = document.querySelector("#token-input");
+const loginView = document.querySelector("#login-view");
+const adminApp = document.querySelector("#admin-app");
+const loginForm = document.querySelector("#login-form");
+const loginError = document.querySelector("#login-error");
+const adminName = document.querySelector("#admin-name");
 const alertBox = document.querySelector("#alert");
 const refreshButton = document.querySelector("#refresh-button");
+const logoutButton = document.querySelector("#logout-button");
 
 function token() {
-  return tokenInput.value.trim() || "demo-admin-token";
+  return state.adminToken;
 }
 
 function headers(extra = {}) {
-  return {
-    authorization: `Bearer ${token()}`,
-    ...extra
-  };
+  const base = token() ? { authorization: `Bearer ${token()}` } : {};
+  return { ...base, ...extra };
 }
 
 async function api(path, options = {}) {
@@ -43,6 +48,7 @@ async function api(path, options = {}) {
   });
   const body = await response.json();
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) logout();
     throw new Error(body.error?.message || "Request failed");
   }
   return body.data;
@@ -55,9 +61,29 @@ async function apiEnvelope(path, options = {}) {
   });
   const body = await response.json();
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) logout();
     throw new Error(body.error?.message || "Request failed");
   }
   return body;
+}
+
+async function loginRequest(email, password) {
+  const response = await fetch("/auth/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+  const body = await response.json();
+
+  if (!response.ok) {
+    throw new Error(body.error?.message || "Login failed");
+  }
+
+  if (body.data?.user?.role !== "admin") {
+    throw new Error("This account is not allowed to access the admin console.");
+  }
+
+  return body.data;
 }
 
 function money(value) {
@@ -94,6 +120,32 @@ function showAlert(message, type = "info") {
   window.setTimeout(() => {
     alertBox.className = "alert hidden";
   }, 3500);
+}
+
+function showLogin(message = "") {
+  adminApp.classList.add("hidden");
+  loginView.classList.remove("hidden");
+  if (message) {
+    loginError.textContent = message;
+    loginError.classList.remove("hidden");
+  } else {
+    loginError.textContent = "";
+    loginError.classList.add("hidden");
+  }
+}
+
+function showAdmin() {
+  loginView.classList.add("hidden");
+  adminApp.classList.remove("hidden");
+  adminName.textContent = state.adminUser?.fullName || state.adminUser?.email || "Admin";
+}
+
+function logout() {
+  state.adminToken = "";
+  state.adminUser = null;
+  window.sessionStorage.removeItem("cryptoclass_admin_token");
+  window.sessionStorage.removeItem("cryptoclass_admin_user");
+  showLogin();
 }
 
 function setView(view) {
@@ -333,6 +385,33 @@ document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.view));
 });
 
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  loginError.classList.add("hidden");
+
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form).entries());
+  const submitButton = form.querySelector("button[type='submit']");
+  submitButton.disabled = true;
+  submitButton.textContent = "Logging in...";
+
+  try {
+    const session = await loginRequest(String(data.email), String(data.password));
+    state.adminToken = session.token;
+    state.adminUser = session.user;
+    window.sessionStorage.setItem("cryptoclass_admin_token", session.token);
+    window.sessionStorage.setItem("cryptoclass_admin_user", JSON.stringify(session.user));
+    showAdmin();
+    await loadAll();
+    form.reset();
+  } catch (error) {
+    showLogin(error.message);
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "Login";
+  }
+});
+
 refreshButton.addEventListener("click", async () => {
   try {
     await loadAll();
@@ -341,6 +420,8 @@ refreshButton.addEventListener("click", async () => {
     showAlert(error.message, "error");
   }
 });
+
+logoutButton.addEventListener("click", logout);
 
 document.body.addEventListener("click", async (event) => {
   const target = event.target.closest("[data-action]");
@@ -406,8 +487,33 @@ document.querySelector("#fees-form").addEventListener("submit", async (event) =>
   }
 });
 
-loadAll().catch((error) => showAlert(error.message, "error"));
+async function init() {
+  const savedUser = window.sessionStorage.getItem("cryptoclass_admin_user");
+  if (savedUser) {
+    try {
+      state.adminUser = JSON.parse(savedUser);
+    } catch {
+      state.adminUser = null;
+    }
+  }
+
+  if (!state.adminToken) {
+    showLogin();
+    return;
+  }
+
+  try {
+    showAdmin();
+    await loadAll();
+  } catch {
+    logout();
+  }
+}
+
+init();
 
 window.setInterval(() => {
-  loadAssets().catch(() => {});
+  if (state.adminToken && !adminApp.classList.contains("hidden")) {
+    loadAssets().catch(() => {});
+  }
 }, 10000);

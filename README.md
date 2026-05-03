@@ -35,6 +35,13 @@ Detailed guides:
 
 ## Demo Tokens
 
+Admin UI login:
+
+```text
+Email: admin@cryptoclass.test
+Password: admin123
+```
+
 Customer routes:
 
 ```http

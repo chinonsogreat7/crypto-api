@@ -7,6 +7,33 @@
     <link rel="stylesheet" href="/admin-ui/styles.css" />
   </head>
   <body>
+    <section id="login-view" class="login-screen">
+      <form id="login-form" class="login-card">
+        <div class="brand login-brand">
+          <div class="brand-mark">C</div>
+          <div>
+            <strong>CryptoClass</strong>
+            <span>Admin Console</span>
+          </div>
+        </div>
+        <div>
+          <p class="eyebrow">Protected Access</p>
+          <h1>Admin Login</h1>
+        </div>
+        <label>
+          <span>Email</span>
+          <input name="email" type="email" autocomplete="username" placeholder="admin@cryptoclass.test" required />
+        </label>
+        <label>
+          <span>Password</span>
+          <input name="password" type="password" autocomplete="current-password" placeholder="Enter admin password" required />
+        </label>
+        <button class="primary-button" type="submit">Login</button>
+        <p id="login-error" class="login-error hidden" role="alert"></p>
+      </form>
+    </section>
+
+    <div id="admin-app" class="admin-app hidden">
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-mark">C</div>
@@ -34,13 +61,14 @@
           <h1 id="view-title">Overview</h1>
         </div>
         <div class="topbar-actions">
-          <label class="token-field">
-            <span>Admin token</span>
-            <input id="token-input" type="password" autocomplete="off" value="demo-admin-token" />
-          </label>
+          <div class="admin-identity">
+            <span>Signed in as</span>
+            <strong id="admin-name">Admin</strong>
+          </div>
           <button id="refresh-button" class="icon-button" type="button" title="Refresh data" aria-label="Refresh data">
             <span aria-hidden="true">↻</span>
           </button>
+          <button id="logout-button" class="secondary-button" type="button">Logout</button>
         </div>
       </header>
 
@@ -252,6 +280,7 @@
         </form>
       </section>
     </main>
+    </div>
 
     <script src="/admin-ui/app.js"></script>
   </body>

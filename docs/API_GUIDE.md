@@ -32,6 +32,13 @@ Admin routes need this header:
 Authorization: Bearer demo-admin-token
 ```
 
+The hosted admin dashboard at `/admin-ui/` is protected by a login screen. Use the seeded admin account:
+
+```text
+Email: admin@cryptoclass.test
+Password: admin123
+```
+
 The API returns errors with this structure:
 
 ```json

@@ -115,6 +115,13 @@ Authorization: Bearer demo-user-token
 Authorization: Bearer demo-admin-token
 ```
 
+Admin UI login:
+
+```text
+Email: admin@cryptoclass.test
+Password: admin123
+```
+
 ## Notes For Free Hosting
 
 Render free services sleep after inactivity. The first request after sleep can be slow.
