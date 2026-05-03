@@ -653,6 +653,32 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/AssetResponse"
+  /admin/assets/{symbol}:
+    patch:
+      summary: Pause or allow an asset
+      parameters:
+        - $ref: "#/components/parameters/Symbol"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isActive]
+              properties:
+                isActive:
+                  type: boolean
+                  example: false
+      responses:
+        "200":
+          description: Updated asset availability
+          content:
+            application/json:
+              examples:
+                paused:
+                  $ref: "#/components/examples/AssetPausedResponse"
+                allowed:
+                  $ref: "#/components/examples/AssetResponse"
   /admin/fees:
     get:
       summary: Get trading fee settings
@@ -775,6 +801,20 @@ components:
           priceUsd: 64200.5
           change24h: 2.1
           isActive: true
+          minBuyUsd: 10
+          minSellUsd: 10
+          iconUrl: /assets/btc.svg
+    AssetPausedResponse:
+      summary: Paused asset
+      value:
+        data:
+          id: asset_btc
+          symbol: BTC
+          name: Bitcoin
+          network: Bitcoin Testnet
+          priceUsd: 64200.5
+          change24h: 2.1
+          isActive: false
           minBuyUsd: 10
           minSellUsd: 10
           iconUrl: /assets/btc.svg

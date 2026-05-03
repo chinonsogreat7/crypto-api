@@ -91,7 +91,7 @@ List responses may also include `meta`:
 | Admin users | `GET /admin/users`, `GET /admin/users/:userId` |
 | Admin KYC review | `GET /admin/kyc`, `PATCH /admin/kyc/:kycId` |
 | Admin withdrawals | `GET /admin/withdrawals`, `PATCH /admin/withdrawals/:withdrawalId` |
-| Admin assets and fees | `GET /admin/assets`, `POST /admin/assets`, `PATCH /admin/fees` |
+| Admin assets and fees | `GET /admin/assets`, `POST /admin/assets`, `PATCH /admin/assets/:symbol`, `PATCH /admin/fees` |
 
 ## Auth Flow
 
@@ -164,6 +164,8 @@ GET /market/prices
 The response includes `meta.market.lastUpdatedAt` and `meta.market.tickIntervalMs`, so students can show when prices were last refreshed and choose a sensible polling interval.
 
 This is not connected to real exchanges. It is designed to behave like a live market feed without API keys, rate limits, or real-money risk.
+
+Admins can pause an asset with `PATCH /admin/assets/:symbol` and `{ "isActive": false }`. Paused assets remain visible in the admin console, but they disappear from customer market endpoints and cannot be used for new quotes or trades. Set `{ "isActive": true }` to allow the asset again.
 
 ## Trading Flow
 

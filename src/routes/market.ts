@@ -15,7 +15,7 @@ marketRouter.get("/assets", (req, res) => {
 });
 
 marketRouter.get("/assets/:symbol", (req, res) => {
-  const asset = db.assets.find((item) => item.symbol.toLowerCase() === req.params.symbol.toLowerCase());
+  const asset = db.assets.find((item) => item.symbol.toLowerCase() === req.params.symbol.toLowerCase() && item.isActive);
   if (!asset) {
     return notFound(res, "Asset was not found.", "ASSET_NOT_FOUND");
   }

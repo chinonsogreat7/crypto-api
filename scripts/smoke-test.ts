@@ -44,6 +44,18 @@ async function main() {
     await request("/admin/dashboard", { headers: adminHeaders });
     await request("/admin/fees", { headers: adminHeaders });
 
+    await request("/admin/assets/BTC", {
+      method: "PATCH",
+      headers: { ...adminHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ isActive: false })
+    });
+
+    await request("/admin/assets/BTC", {
+      method: "PATCH",
+      headers: { ...adminHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ isActive: true })
+    });
+
     await request("/admin/kyc/kyc_student", {
       method: "PATCH",
       headers: { ...adminHeaders, "content-type": "application/json" },

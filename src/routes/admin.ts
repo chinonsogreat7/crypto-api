@@ -137,6 +137,20 @@ adminRouter.post("/assets", (req: Request<unknown, unknown, Omit<Asset, "id">>, 
   return created(res, asset);
 });
 
+adminRouter.patch("/assets/:symbol", (req: Request<{ symbol: string }, unknown, { isActive?: boolean }>, res) => {
+  if (typeof req.body.isActive !== "boolean") {
+    return badRequest(res, "isActive must be true or false.");
+  }
+
+  const asset = db.assets.find((item) => item.symbol.toLowerCase() === req.params.symbol.toLowerCase());
+  if (!asset) {
+    return notFound(res, "Asset was not found.", "ASSET_NOT_FOUND");
+  }
+
+  asset.isActive = req.body.isActive;
+  return ok(res, clone(asset));
+});
+
 adminRouter.get("/fees", (req, res) => {
   return ok(res, clone(db.feeSettings));
 });

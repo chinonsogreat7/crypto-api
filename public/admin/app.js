@@ -262,6 +262,9 @@ function renderAssets() {
       const direction =
         previousPrice === undefined || previousPrice === asset.priceUsd ? "" : asset.priceUsd > previousPrice ? "price-up" : "price-down";
       const changeClass = asset.change24h >= 0 ? "price-up" : "price-down";
+      const actionLabel = asset.isActive ? "Pause" : "Allow";
+      const actionClass = asset.isActive ? "reject" : "approve";
+      const nextIsActive = asset.isActive ? "false" : "true";
 
       return `<tr>
         <td><strong>${safe(asset.symbol)}</strong><br><span class="muted">${safe(asset.name)}</span></td>
@@ -269,6 +272,9 @@ function renderAssets() {
         <td class="${direction}">${money(asset.priceUsd)}</td>
         <td class="${changeClass}">${number(asset.change24h, 2)}%</td>
         <td>${statusChip(asset.isActive ? "active" : "inactive")}</td>
+        <td class="actions-cell">
+          <button class="table-button ${actionClass}" data-action="asset-status" data-symbol="${safe(asset.symbol)}" data-active="${nextIsActive}" type="button">${actionLabel}</button>
+        </td>
       </tr>`;
     })
     .join("");
@@ -313,6 +319,16 @@ async function reviewWithdrawal(id, status) {
   await loadAll();
 }
 
+async function updateAssetStatus(symbol, isActive) {
+  await api(`/admin/assets/${encodeURIComponent(symbol)}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ isActive })
+  });
+  showAlert(`${symbol} ${isActive ? "allowed" : "paused"}.`);
+  await loadAssets();
+}
+
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.view));
 });
@@ -336,6 +352,9 @@ document.body.addEventListener("click", async (event) => {
     }
     if (target.dataset.action === "withdrawal") {
       await reviewWithdrawal(target.dataset.id, target.dataset.status);
+    }
+    if (target.dataset.action === "asset-status") {
+      await updateAssetStatus(target.dataset.symbol, target.dataset.active === "true");
     }
   } catch (error) {
     showAlert(error.message, "error");
