@@ -15,6 +15,8 @@ model User {
   phone          String
   password       String
   pin            String
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
   kycStatus      String
   avatarUrl      String?
   watchlist      String

@@ -1,13 +1,21 @@
 import express, { type Request } from "express";
 import { clone, createId, db, publicUser } from "../data/store";
+import { requireAuth } from "../middleware/auth";
+import { generateTotpSecret, otpauthUri, verifyTotpCode } from "../services/totp";
 import type { KycSubmission, User } from "../models";
 import { badRequest, created, ok } from "../utils/http";
 
 export const authRouter = express.Router();
 
 interface LoginBody {
+  identifier?: string;
   email?: string;
   password?: string;
+}
+
+interface TwoFactorVerifyBody {
+  challengeId?: string;
+  code?: string;
 }
 
 interface RegisterBody {
@@ -31,6 +39,34 @@ interface KycBody {
   documentImageUrl?: string;
 }
 
+function findUserByIdentifier(identifier: string): User | undefined {
+  const trimmed = identifier.trim();
+  const normalized = trimmed.toLowerCase();
+  return db.users.find((item) => item.email.toLowerCase() === normalized || item.phone === trimmed);
+}
+
+function sessionFor(user: User) {
+  let session = db.sessions.find((item) => item.userId === user.id);
+  if (!session) {
+    session = { token: `demo-token-${user.id}`, userId: user.id };
+    db.sessions.push(session);
+  }
+  return session;
+}
+
+function createTwoFactorChallenge(user: User) {
+  const now = Date.now();
+  db.twoFactorChallenges = db.twoFactorChallenges.filter((item) => new Date(item.expiresAt).getTime() > now);
+
+  const challenge = {
+    id: createId("2fa"),
+    userId: user.id,
+    expiresAt: new Date(now + 5 * 60 * 1000).toISOString()
+  };
+  db.twoFactorChallenges.push(challenge);
+  return challenge;
+}
+
 authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res) => {
   const { fullName, email, phone, password } = req.body;
   if (!fullName || !email || !phone || !password) {
@@ -50,6 +86,8 @@ authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res)
     phone,
     password,
     pin: "0000",
+    twoFactorEnabled: false,
+    twoFactorSecret: null,
     kycStatus: "not_started",
     avatarUrl: null,
     watchlist: ["BTC", "ETH"],
@@ -86,12 +124,13 @@ authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res)
 });
 
 authRouter.post("/login", (req: Request<unknown, unknown, LoginBody>, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return badRequest(res, "email and password are required.");
+  const identifier = req.body.identifier || req.body.email;
+  const { password } = req.body;
+  if (!identifier || !password) {
+    return badRequest(res, "identifier and password are required.");
   }
 
-  const user = db.users.find((item) => item.email === email.toLowerCase());
+  const user = findUserByIdentifier(identifier);
   if (!user || user.password !== password) {
     return res.status(401).json({
       error: {
@@ -101,13 +140,77 @@ authRouter.post("/login", (req: Request<unknown, unknown, LoginBody>, res) => {
     });
   }
 
-  let session = db.sessions.find((item) => item.userId === user.id);
-  if (!session) {
-    session = { token: `demo-token-${user.id}`, userId: user.id };
-    db.sessions.push(session);
+  if (user.twoFactorEnabled && user.twoFactorSecret) {
+    const challenge = createTwoFactorChallenge(user);
+    return ok(res, {
+      requiresTwoFactor: true,
+      challengeId: challenge.id,
+      expiresAt: challenge.expiresAt
+    });
   }
 
+  const session = sessionFor(user);
   return ok(res, { user: publicUser(user), token: session.token });
+});
+
+authRouter.post("/2fa/setup", requireAuth, (req, res) => {
+  const secret = generateTotpSecret();
+  req.user.twoFactorSecret = secret;
+  req.user.twoFactorEnabled = false;
+
+  return ok(res, {
+    secret,
+    otpauthUri: otpauthUri(req.user.email, secret),
+    enabled: false
+  });
+});
+
+authRouter.post("/2fa/enable", requireAuth, (req: Request<unknown, unknown, { code?: string }>, res) => {
+  if (!req.user.twoFactorSecret) {
+    return badRequest(res, "Run /auth/2fa/setup before enabling 2FA.", "TWO_FACTOR_SETUP_REQUIRED");
+  }
+
+  if (!req.body.code || !verifyTotpCode(req.user.twoFactorSecret, req.body.code)) {
+    return badRequest(res, "Invalid authenticator code.", "INVALID_TWO_FACTOR_CODE");
+  }
+
+  req.user.twoFactorEnabled = true;
+  return ok(res, { enabled: true });
+});
+
+authRouter.post("/2fa/verify", (req: Request<unknown, unknown, TwoFactorVerifyBody>, res) => {
+  const { challengeId, code } = req.body;
+  if (!challengeId || !code) {
+    return badRequest(res, "challengeId and code are required.");
+  }
+
+  const challenge = db.twoFactorChallenges.find((item) => item.id === challengeId);
+  if (!challenge || new Date(challenge.expiresAt).getTime() < Date.now()) {
+    return badRequest(res, "2FA challenge was not found or has expired.", "TWO_FACTOR_CHALLENGE_EXPIRED");
+  }
+
+  const user = db.users.find((item) => item.id === challenge.userId);
+  if (!user?.twoFactorSecret || !verifyTotpCode(user.twoFactorSecret, code)) {
+    return badRequest(res, "Invalid authenticator code.", "INVALID_TWO_FACTOR_CODE");
+  }
+
+  db.twoFactorChallenges = db.twoFactorChallenges.filter((item) => item.id !== challenge.id);
+  const session = sessionFor(user);
+  return ok(res, { user: publicUser(user), token: session.token });
+});
+
+authRouter.post("/2fa/disable", requireAuth, (req: Request<unknown, unknown, { password?: string; code?: string }>, res) => {
+  if (!req.body.password || req.body.password !== req.user.password) {
+    return badRequest(res, "password is required and must match the current user.", "INVALID_PASSWORD");
+  }
+
+  if (req.user.twoFactorSecret && (!req.body.code || !verifyTotpCode(req.user.twoFactorSecret, req.body.code))) {
+    return badRequest(res, "Invalid authenticator code.", "INVALID_TWO_FACTOR_CODE");
+  }
+
+  req.user.twoFactorEnabled = false;
+  req.user.twoFactorSecret = null;
+  return ok(res, { enabled: false });
 });
 
 authRouter.post("/otp/request", (req: Request<unknown, unknown, { email?: string }>, res) => {

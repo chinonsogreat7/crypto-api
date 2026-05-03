@@ -24,6 +24,7 @@ export function replaceDatabase(nextDb: Database): void {
   db.withdrawalRequests = nextDb.withdrawalRequests;
   db.notifications = nextDb.notifications;
   db.deviceTokens = nextDb.deviceTokens;
+  db.twoFactorChallenges = [];
   db.feeSettings = nextDb.feeSettings;
 }
 
@@ -32,7 +33,7 @@ export function createId(prefix: string): string {
 }
 
 export function publicUser(user: User): PublicUser {
-  const { password, pin, ...safeUser } = user;
+  const { password, pin, twoFactorSecret, ...safeUser } = user;
   return clone(safeUser);
 }
 

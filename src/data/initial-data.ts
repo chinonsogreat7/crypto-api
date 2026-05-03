@@ -12,6 +12,8 @@ export const initialData: Database = {
       phone: "+2348010000001",
       password: "password123",
       pin: "1234",
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
       kycStatus: "pending",
       avatarUrl: null,
       watchlist: ["BTC", "ETH", "SOL"],
@@ -33,6 +35,8 @@ export const initialData: Database = {
       phone: "+2348010000002",
       password: "admin123",
       pin: "0000",
+      twoFactorEnabled: false,
+      twoFactorSecret: null,
       kycStatus: "approved",
       avatarUrl: null,
       watchlist: [],
@@ -326,6 +330,7 @@ export const initialData: Database = {
     }
   ],
   deviceTokens: [],
+  twoFactorChallenges: [],
   feeSettings: {
     buyFeePercent: 1,
     sellFeePercent: 1,

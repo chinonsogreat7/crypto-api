@@ -83,6 +83,8 @@ export async function loadDatabase(): Promise<Database> {
       phone: user.phone,
       password: user.password,
       pin: user.pin,
+      twoFactorEnabled: user.twoFactorEnabled,
+      twoFactorSecret: user.twoFactorSecret,
       kycStatus: user.kycStatus as KycStatus,
       avatarUrl: user.avatarUrl,
       watchlist: JSON.parse(user.watchlist) as AssetSymbol[],
@@ -181,6 +183,7 @@ export async function loadDatabase(): Promise<Database> {
       createdAt: deviceToken.createdAt.toISOString(),
       lastSeenAt: deviceToken.lastSeenAt.toISOString()
     })),
+    twoFactorChallenges: [],
     feeSettings: feeSettings
       ? {
           buyFeePercent: feeSettings.buyFeePercent,

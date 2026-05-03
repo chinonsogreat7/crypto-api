@@ -124,12 +124,59 @@ POST /auth/login
 Content-Type: application/json
 
 {
-  "email": "student@cryptoclass.test",
+  "identifier": "student@cryptoclass.test",
   "password": "password123"
 }
 ```
 
+`identifier` can be an email address or phone number. The older `email` field still works for backward compatibility.
+
+If optional authenticator 2FA is enabled, login returns a challenge instead of a token:
+
+```json
+{
+  "data": {
+    "requiresTwoFactor": true,
+    "challengeId": "2fa_abc123",
+    "expiresAt": "2026-05-03T14:55:00.000Z"
+  }
+}
+```
+
 The demo user starts with PIN `1234`. The admin starts with password `admin123`.
+
+### Optional Authenticator 2FA
+
+Start setup while authenticated:
+
+```http
+POST /auth/2fa/setup
+Authorization: Bearer demo-user-token
+```
+
+Show the returned `otpauthUri` as a QR code in the Expo app. Then enable 2FA with the 6-digit code from the authenticator app:
+
+```http
+POST /auth/2fa/enable
+Authorization: Bearer demo-user-token
+Content-Type: application/json
+
+{
+  "code": "123456"
+}
+```
+
+When login returns `requiresTwoFactor`, complete login with:
+
+```http
+POST /auth/2fa/verify
+Content-Type: application/json
+
+{
+  "challengeId": "2fa_abc123",
+  "code": "123456"
+}
+```
 
 ### KYC
 

@@ -62,14 +62,79 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password]
+              required: [identifier, password]
               properties:
+                identifier:
+                  type: string
+                  example: student@cryptoclass.test
                 email:
                   type: string
+                  description: Backward-compatible alias for identifier
                   example: student@cryptoclass.test
                 password:
                   type: string
                   example: password123
+      responses:
+        "200":
+          description: User and token, or a 2FA challenge
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AuthResponse"
+                twoFactorRequired:
+                  $ref: "#/components/examples/TwoFactorChallengeResponse"
+  /auth/2fa/setup:
+    post:
+      summary: Start authenticator app setup
+      responses:
+        "200":
+          description: TOTP secret and QR URI
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/TwoFactorSetupResponse"
+  /auth/2fa/enable:
+    post:
+      summary: Enable authenticator app 2FA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+                  example: "123456"
+      responses:
+        "200":
+          description: 2FA enabled
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/TwoFactorEnabledResponse"
+  /auth/2fa/verify:
+    post:
+      security: []
+      summary: Verify a login 2FA challenge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeId, code]
+              properties:
+                challengeId:
+                  type: string
+                  example: 2fa_abc123
+                code:
+                  type: string
+                  example: "123456"
       responses:
         "200":
           description: User and token
@@ -78,6 +143,31 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/AuthResponse"
+  /auth/2fa/disable:
+    post:
+      summary: Disable authenticator app 2FA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password, code]
+              properties:
+                password:
+                  type: string
+                  example: password123
+                code:
+                  type: string
+                  example: "123456"
+      responses:
+        "200":
+          description: 2FA disabled
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/TwoFactorDisabledResponse"
   /auth/otp/request:
     post:
       security: []
@@ -805,6 +895,7 @@ components:
             fullName: Ada Student
             email: student@cryptoclass.test
             phone: "+2348010000001"
+            twoFactorEnabled: false
             kycStatus: approved
             avatarUrl: null
             watchlist: [BTC, ETH]
@@ -817,6 +908,30 @@ components:
               biometricEnabled: false
             createdAt: "2026-05-03T14:00:00.000Z"
           token: demo-user-token
+    TwoFactorChallengeResponse:
+      summary: 2FA challenge required
+      value:
+        data:
+          requiresTwoFactor: true
+          challengeId: 2fa_abc123
+          expiresAt: "2026-05-03T14:55:00.000Z"
+    TwoFactorSetupResponse:
+      summary: Authenticator setup
+      value:
+        data:
+          secret: JBSWY3DPEHPK3PXP
+          otpauthUri: otpauth://totp/CryptoClass%3Astudent%40cryptoclass.test?secret=JBSWY3DPEHPK3PXP&issuer=CryptoClass&algorithm=SHA1&digits=6&period=30
+          enabled: false
+    TwoFactorEnabledResponse:
+      summary: 2FA enabled
+      value:
+        data:
+          enabled: true
+    TwoFactorDisabledResponse:
+      summary: 2FA disabled
+      value:
+        data:
+          enabled: false
     OtpRequestResponse:
       summary: Demo OTP sent
       value:
@@ -952,6 +1067,7 @@ components:
           fullName: Ada Student
           email: student@cryptoclass.test
           phone: "+2348010000001"
+          twoFactorEnabled: false
           kycStatus: approved
           avatarUrl: null
           watchlist: [BTC, ETH]
@@ -1216,6 +1332,7 @@ components:
             fullName: Ada Student
             email: student@cryptoclass.test
             phone: "+2348010000001"
+            twoFactorEnabled: false
             kycStatus: approved
             avatarUrl: null
             watchlist: [BTC, ETH]
@@ -1239,6 +1356,7 @@ components:
             fullName: Ada Student
             email: student@cryptoclass.test
             phone: "+2348010000001"
+            twoFactorEnabled: false
             kycStatus: approved
             avatarUrl: null
             watchlist: [BTC, ETH]

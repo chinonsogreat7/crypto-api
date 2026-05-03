@@ -1,5 +1,6 @@
 import { createApp } from "../src/app";
 import { bootstrapDatabase } from "../src/data/persistence";
+import { generateTotpCode } from "../src/services/totp";
 
 const port = 4300;
 const host = "127.0.0.1";
@@ -31,6 +32,42 @@ async function main() {
 
   try {
     await request("/health");
+    await request("/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ identifier: "+2348010000001", password: "password123" })
+    });
+
+    const setupBody = await request("/auth/2fa/setup", {
+      method: "POST",
+      headers: userHeaders
+    });
+    const twoFactorCode = generateTotpCode(setupBody.data.secret);
+
+    await request("/auth/2fa/enable", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ code: twoFactorCode })
+    });
+
+    const challengeBody = await request("/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ identifier: "student@cryptoclass.test", password: "password123" })
+    });
+
+    await request("/auth/2fa/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ challengeId: challengeBody.data.challengeId, code: generateTotpCode(setupBody.data.secret) })
+    });
+
+    await request("/auth/2fa/disable", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ password: "password123", code: generateTotpCode(setupBody.data.secret) })
+    });
+
     await request("/market/assets");
     await request("/market/prices");
     await request("/market/trending");
@@ -70,10 +107,16 @@ async function main() {
       body: JSON.stringify({ status: "approved", reviewerNote: "Approved for classroom demo." })
     });
 
+    await request("/wallet/deposit/simulate", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ amount: 500 })
+    });
+
     const quoteBody = await request("/trade/quotes", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
-      body: JSON.stringify({ type: "swap", fromAsset: "ETH", toAsset: "USDC", fromAmount: 0.1 })
+      body: JSON.stringify({ type: "buy", fromAsset: "USD", toAsset: "USDC", fromAmount: 50 })
     });
 
     await request("/trade/execute", {

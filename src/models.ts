@@ -28,6 +28,8 @@ export interface User {
   phone: string;
   password: string;
   pin: string;
+  twoFactorEnabled: boolean;
+  twoFactorSecret: string | null;
   kycStatus: KycStatus;
   avatarUrl: string | null;
   watchlist: AssetSymbol[];
@@ -35,7 +37,7 @@ export interface User {
   createdAt: string;
 }
 
-export type PublicUser = Omit<User, "password" | "pin">;
+export type PublicUser = Omit<User, "password" | "pin" | "twoFactorSecret">;
 
 export interface UserSettings {
   language: "en";
@@ -170,6 +172,12 @@ export interface DeviceToken {
   lastSeenAt: string;
 }
 
+export interface TwoFactorChallenge {
+  id: string;
+  userId: string;
+  expiresAt: string;
+}
+
 export interface Database {
   users: User[];
   sessions: Session[];
@@ -181,5 +189,6 @@ export interface Database {
   withdrawalRequests: WithdrawalRequest[];
   notifications: Notification[];
   deviceTokens: DeviceToken[];
+  twoFactorChallenges: TwoFactorChallenge[];
   feeSettings: FeeSettings;
 }

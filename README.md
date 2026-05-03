@@ -13,6 +13,8 @@ npm run dev
 
 The API runs on `http://localhost:4200` by default.
 
+Login accepts either email or phone number through `identifier`, and optional authenticator-app 2FA is available for crypto-style account protection.
+
 Useful URLs:
 
 - `GET /health`

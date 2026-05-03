@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS "User" (
   "phone" TEXT NOT NULL,
   "password" TEXT NOT NULL,
   "pin" TEXT NOT NULL,
+  "twoFactorEnabled" BOOLEAN NOT NULL DEFAULT false,
+  "twoFactorSecret" TEXT,
   "kycStatus" TEXT NOT NULL,
   "avatarUrl" TEXT,
   "watchlist" TEXT NOT NULL,
@@ -188,5 +190,7 @@ function addColumnIfMissing(table: string, column: string, definition: string): 
 runSql(sql);
 addColumnIfMissing("KycSubmission", "selfieImageUrl", "TEXT");
 addColumnIfMissing("KycSubmission", "documentImageUrl", "TEXT");
+addColumnIfMissing("User", "twoFactorEnabled", "BOOLEAN NOT NULL DEFAULT false");
+addColumnIfMissing("User", "twoFactorSecret", "TEXT");
 
 console.log(`SQLite schema ready at ${databasePath}`);
