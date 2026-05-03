@@ -77,6 +77,14 @@ Value: postgresql://USER:PASSWORD@HOST.neon.tech/DATABASE?sslmode=require
 
 After saving, choose **Save, rebuild, and deploy** so Prisma can create the database tables during the next build.
 
+Optional Expo push delivery:
+
+```text
+ENABLE_PUSH_NOTIFICATIONS=true
+```
+
+Leave this unset or set it to `false` if students only need in-app notifications through `GET /me/notifications`.
+
 If Render logs show `Cannot find module '/opt/render/project/src/dist/src/server.js'`, the service is only installing dependencies and is not compiling TypeScript. Update the Render Build Command to the value above, then redeploy.
 
 The repo also includes a guarded `postinstall` fallback for Render. If the dashboard accidentally keeps `npm install` as the Build Command, Render still runs the TypeScript build because it sets `RENDER=true` during builds. Local installs skip this fallback.

@@ -36,6 +36,14 @@ async function main() {
     await request("/market/trending");
     await request("/me", { headers: userHeaders });
     await request("/me/settings", { headers: userHeaders });
+    await request("/me/devices", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({
+        expoPushToken: "ExponentPushToken[demoPushToken123]",
+        platform: "ios"
+      })
+    });
     await request("/me/watchlist", { headers: userHeaders });
     await request("/me/notifications", { headers: userHeaders });
     await request("/wallet", { headers: userHeaders });

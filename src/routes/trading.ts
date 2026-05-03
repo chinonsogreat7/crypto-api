@@ -9,6 +9,7 @@ import {
   getWallet
 } from "../data/store";
 import { requireAuth } from "../middleware/auth";
+import { notifyUser } from "../services/notifications";
 import type { AssetSymbol, FiatCurrency, Quote, Transaction } from "../models";
 import { badRequest, created, notFound, ok } from "../utils/http";
 
@@ -72,7 +73,7 @@ tradingRouter.post("/quotes", (req: Request<unknown, unknown, QuoteBody>, res) =
   return created(res, quote);
 });
 
-tradingRouter.post("/execute", (req: Request<unknown, unknown, ExecuteBody>, res) => {
+tradingRouter.post("/execute", async (req: Request<unknown, unknown, ExecuteBody>, res) => {
   const { quoteId, pin } = req.body;
   if (!quoteId || !pin) {
     return badRequest(res, "quoteId and pin are required.");
@@ -124,5 +125,13 @@ tradingRouter.post("/execute", (req: Request<unknown, unknown, ExecuteBody>, res
   };
 
   addTransaction(transaction);
+  await notifyUser({
+    userId: req.user.id,
+    title: "Trade completed",
+    body: `${quote.type.toUpperCase()} ${quote.fromAmount} ${quote.fromAsset} to ${quote.toAmount} ${quote.toAsset} completed.`,
+    type: "transaction",
+    data: { transactionId: transaction.id, type: transaction.type }
+  });
+
   return created(res, { transaction, wallet });
 });

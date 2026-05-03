@@ -93,6 +93,7 @@ List responses may also include `meta`:
 | Transaction details | `GET /wallet/transactions/:transactionId` |
 | Profile | `GET /me`, `PATCH /me` |
 | Settings | `GET /me/settings`, `PATCH /me/settings`, `PATCH /me/pin` |
+| Push token registration | `POST /me/devices` |
 | Notifications | `GET /me/notifications`, `PATCH /me/notifications/:notificationId/read`, `PATCH /me/notifications/read-all` |
 | Admin dashboard | `GET /admin/dashboard` |
 | Admin users | `GET /admin/users`, `GET /admin/users/:userId` |
@@ -209,6 +210,23 @@ Content-Type: application/json
 This design teaches an important fintech concept: the preview step and execution step should be separate because rates and fees can expire.
 
 ## Wallet Flow
+
+## Expo Push Notifications
+
+Expo mobile apps should request notification permission, get an Expo push token, and register it with the API:
+
+```http
+POST /me/devices
+Authorization: Bearer demo-user-token
+Content-Type: application/json
+
+{
+  "expoPushToken": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+  "platform": "ios"
+}
+```
+
+The API always creates in-app notifications in `GET /me/notifications`. Real Expo push delivery is optional and only runs when `ENABLE_PUSH_NOTIFICATIONS=true` is set on the backend. Current push triggers include KYC review, withdrawal review, and completed trades.
 
 `GET /wallet` returns balances and total portfolio value.
 

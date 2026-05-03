@@ -159,6 +159,15 @@ export interface Notification {
   createdAt: string;
 }
 
+export interface DeviceToken {
+  id: string;
+  userId: string;
+  expoPushToken: string;
+  platform: "ios" | "android" | "web";
+  createdAt: string;
+  lastSeenAt: string;
+}
+
 export interface Database {
   users: User[];
   sessions: Session[];
@@ -169,5 +178,6 @@ export interface Database {
   kycSubmissions: KycSubmission[];
   withdrawalRequests: WithdrawalRequest[];
   notifications: Notification[];
+  deviceTokens: DeviceToken[];
   feeSettings: FeeSettings;
 }

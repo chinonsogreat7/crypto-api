@@ -1,7 +1,8 @@
 import express, { type Request } from "express";
 import { clone, db, publicUser } from "../data/store";
 import { requireAuth } from "../middleware/auth";
-import type { AssetSymbol, PublicUser, UserSettings } from "../models";
+import { isExpoPushToken, registerDeviceToken } from "../services/notifications";
+import type { AssetSymbol, DeviceToken, PublicUser, UserSettings } from "../models";
 import { badRequest, notFound, ok } from "../utils/http";
 
 export const meRouter = express.Router();
@@ -10,6 +11,7 @@ meRouter.use(requireAuth);
 
 type ProfileBody = Partial<Pick<PublicUser, "fullName" | "phone" | "avatarUrl">>;
 type SettingsBody = Partial<UserSettings>;
+type DeviceBody = Pick<DeviceToken, "expoPushToken" | "platform">;
 
 meRouter.get("/", (req, res) => {
   return ok(res, req.publicUser);
@@ -56,6 +58,26 @@ meRouter.patch("/pin", (req: Request<unknown, unknown, { currentPin?: string; ne
 
   req.user.pin = newPin;
   return ok(res, { updated: true });
+});
+
+meRouter.post("/devices", (req: Request<unknown, unknown, Partial<DeviceBody>>, res) => {
+  const { expoPushToken, platform } = req.body;
+
+  if (!expoPushToken || !isExpoPushToken(expoPushToken)) {
+    return badRequest(res, "expoPushToken must be a valid Expo push token.", "INVALID_EXPO_PUSH_TOKEN");
+  }
+
+  if (!platform || !["ios", "android", "web"].includes(platform)) {
+    return badRequest(res, "platform must be ios, android, or web.");
+  }
+
+  const device = registerDeviceToken({
+    userId: req.user.id,
+    expoPushToken,
+    platform
+  });
+
+  return ok(res, clone(device));
 });
 
 meRouter.get("/watchlist", (req, res) => {

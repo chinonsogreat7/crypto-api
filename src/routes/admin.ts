@@ -2,6 +2,7 @@ import express, { type Request } from "express";
 import { clone, createId, db, findBalance, getWallet, portfolioValueUsd, publicUser } from "../data/store";
 import { marketMeta } from "../data/market-simulator";
 import { requireAdmin, requireAuth } from "../middleware/auth";
+import { notifyUser } from "../services/notifications";
 import type { Asset, KycStatus } from "../models";
 import { badRequest, created, notFound, ok } from "../utils/http";
 
@@ -48,7 +49,7 @@ adminRouter.get("/kyc", (req, res) => {
   return ok(res, clone(db.kycSubmissions), { count: db.kycSubmissions.length });
 });
 
-adminRouter.patch("/kyc/:kycId", (req: Request<{ kycId: string }, unknown, { status?: KycStatus; reviewerNote?: string }>, res) => {
+adminRouter.patch("/kyc/:kycId", async (req: Request<{ kycId: string }, unknown, { status?: KycStatus; reviewerNote?: string }>, res) => {
   const { status, reviewerNote } = req.body;
   if (!status || !["approved", "rejected"].includes(status)) {
     return badRequest(res, "status must be approved or rejected.");
@@ -66,6 +67,14 @@ adminRouter.patch("/kyc/:kycId", (req: Request<{ kycId: string }, unknown, { sta
   const user = db.users.find((item) => item.id === submission.userId);
   if (user) user.kycStatus = status;
 
+  await notifyUser({
+    userId: submission.userId,
+    title: `KYC ${status}`,
+    body: status === "approved" ? "Your account is ready for sandbox trading." : "Your KYC submission needs another review.",
+    type: "kyc",
+    data: { kycId: submission.id, status }
+  });
+
   return ok(res, clone(submission));
 });
 
@@ -77,7 +86,7 @@ adminRouter.get("/withdrawals", (req, res) => {
   return ok(res, clone(db.withdrawalRequests), { count: db.withdrawalRequests.length });
 });
 
-adminRouter.patch("/withdrawals/:withdrawalId", (req: Request<{ withdrawalId: string }, unknown, { status?: "approved" | "rejected"; reviewerNote?: string }>, res) => {
+adminRouter.patch("/withdrawals/:withdrawalId", async (req: Request<{ withdrawalId: string }, unknown, { status?: "approved" | "rejected"; reviewerNote?: string }>, res) => {
   const { status, reviewerNote } = req.body;
   if (!status || !["approved", "rejected"].includes(status)) {
     return badRequest(res, "status must be approved or rejected.");
@@ -106,6 +115,14 @@ adminRouter.patch("/withdrawals/:withdrawalId", (req: Request<{ withdrawalId: st
     balance.locked = Math.max(0, balance.locked - lockedAmount);
     balance.available += lockedAmount;
   }
+
+  await notifyUser({
+    userId: withdrawal.userId,
+    title: `Withdrawal ${status}`,
+    body: `${withdrawal.amount} ${withdrawal.assetSymbol} withdrawal was ${status}.`,
+    type: "transaction",
+    data: { withdrawalId: withdrawal.id, status }
+  });
 
   return ok(res, clone(withdrawal));
 });

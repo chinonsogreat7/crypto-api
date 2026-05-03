@@ -323,6 +323,7 @@ export const initialData: Database = {
       createdAt: now
     }
   ],
+  deviceTokens: [],
   feeSettings: {
     buyFeePercent: 1,
     sellFeePercent: 1,

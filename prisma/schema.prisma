@@ -26,6 +26,7 @@ model User {
   kycSubmissions KycSubmission[]
   withdrawals    WithdrawalRequest[]
   notifications  Notification[]
+  deviceTokens   DeviceToken[]
 }
 
 model Session {
@@ -147,6 +148,16 @@ model Notification {
   isRead    Boolean
   createdAt DateTime
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DeviceToken {
+  id            String   @id
+  userId        String
+  expoPushToken String   @unique
+  platform      String
+  createdAt     DateTime
+  lastSeenAt    DateTime
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model FeeSettings {

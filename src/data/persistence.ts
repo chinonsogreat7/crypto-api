@@ -55,6 +55,7 @@ export async function loadDatabase(): Promise<Database> {
     kycSubmissions,
     withdrawalRequests,
     notifications,
+    deviceTokens,
     feeSettings
   ] = await Promise.all([
     prisma.user.findMany({ orderBy: { createdAt: "asc" } }),
@@ -69,6 +70,7 @@ export async function loadDatabase(): Promise<Database> {
     prisma.kycSubmission.findMany({ orderBy: { submittedAt: "desc" } }),
     prisma.withdrawalRequest.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.notification.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.deviceToken.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.feeSettings.findUnique({ where: { id: "default" } })
   ]);
 
@@ -169,6 +171,14 @@ export async function loadDatabase(): Promise<Database> {
       isRead: notification.isRead,
       createdAt: notification.createdAt.toISOString()
     })),
+    deviceTokens: deviceTokens.map((deviceToken) => ({
+      id: deviceToken.id,
+      userId: deviceToken.userId,
+      expoPushToken: deviceToken.expoPushToken,
+      platform: deviceToken.platform as "ios" | "android" | "web",
+      createdAt: deviceToken.createdAt.toISOString(),
+      lastSeenAt: deviceToken.lastSeenAt.toISOString()
+    })),
     feeSettings: feeSettings
       ? {
           buyFeePercent: feeSettings.buyFeePercent,
@@ -192,6 +202,7 @@ export async function saveDatabase(data: Database): Promise<void> {
     await tx.kycSubmission.deleteMany();
     await tx.transaction.deleteMany();
     await tx.quote.deleteMany();
+    await tx.deviceToken.deleteMany();
     await tx.depositAddress.deleteMany();
     await tx.walletBalance.deleteMany();
     await tx.wallet.deleteMany();
@@ -298,6 +309,16 @@ export async function saveDatabase(data: Database): Promise<void> {
         data: {
           ...notification,
           createdAt: new Date(notification.createdAt)
+        }
+      });
+    }
+
+    for (const deviceToken of data.deviceTokens) {
+      await tx.deviceToken.create({
+        data: {
+          ...deviceToken,
+          createdAt: new Date(deviceToken.createdAt),
+          lastSeenAt: new Date(deviceToken.lastSeenAt)
         }
       });
     }

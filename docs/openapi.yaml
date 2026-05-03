@@ -216,6 +216,32 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/UpdatedResponse"
+  /me/devices:
+    post:
+      summary: Register an Expo push token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expoPushToken, platform]
+              properties:
+                expoPushToken:
+                  type: string
+                  example: ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+                platform:
+                  type: string
+                  enum: [ios, android, web]
+                  example: ios
+      responses:
+        "200":
+          description: Registered device token
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/DeviceTokenResponse"
   /me/watchlist:
     get:
       summary: List watchlist assets
@@ -952,6 +978,16 @@ components:
       value:
         data:
           updated: true
+    DeviceTokenResponse:
+      summary: Registered Expo push token
+      value:
+        data:
+          id: device_abc123
+          userId: usr_student
+          expoPushToken: ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+          platform: ios
+          createdAt: "2026-05-03T14:30:00.000Z"
+          lastSeenAt: "2026-05-03T14:30:00.000Z"
     WalletResponse:
       summary: Wallet with balances
       value:

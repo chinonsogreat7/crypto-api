@@ -23,6 +23,7 @@ export function replaceDatabase(nextDb: Database): void {
   db.kycSubmissions = nextDb.kycSubmissions;
   db.withdrawalRequests = nextDb.withdrawalRequests;
   db.notifications = nextDb.notifications;
+  db.deviceTokens = nextDb.deviceTokens;
   db.feeSettings = nextDb.feeSettings;
 }
 

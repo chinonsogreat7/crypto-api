@@ -21,6 +21,8 @@ Useful URLs:
 - `GET /market/prices`
 - `GET /admin-ui`
 
+Expo apps can register push tokens with `POST /me/devices`. Real Expo push delivery is optional through `ENABLE_PUSH_NOTIFICATIONS=true`; in-app notifications work without it.
+
 Database commands:
 
 - `npm run db:push` creates or updates the local SQLite schema.
