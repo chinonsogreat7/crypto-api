@@ -68,9 +68,20 @@ Auto-Deploy: On Commit
 
 After creating the service, set `DATABASE_URL` in Render environment variables.
 
+To add it in Render, open the service and go to **Environment > Environment Variables > Add Environment Variable**:
+
+```text
+Key: DATABASE_URL
+Value: postgresql://USER:PASSWORD@HOST.neon.tech/DATABASE?sslmode=require
+```
+
+After saving, choose **Save, rebuild, and deploy** so Prisma can create the database tables during the next build.
+
 If Render logs show `Cannot find module '/opt/render/project/src/dist/src/server.js'`, the service is only installing dependencies and is not compiling TypeScript. Update the Render Build Command to the value above, then redeploy.
 
 The repo also includes a guarded `postinstall` fallback for Render. If the dashboard accidentally keeps `npm install` as the Build Command, Render still runs the TypeScript build because it sets `RENDER=true` during builds. Local installs skip this fallback.
+
+If Render logs show `Environment variable not found: DATABASE_URL`, the Postgres connection string has not been added to the service environment yet.
 
 With `autoDeployTrigger: commit` in `render.yaml`, Render deploys automatically whenever a commit is pushed to the linked `main` branch. If the service was created manually instead of from the Blueprint, enable this in the Render Dashboard under **Settings > Auto-Deploy > On Commit**.
 

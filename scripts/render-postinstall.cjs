@@ -9,6 +9,15 @@ if (!isRender || skip) {
   process.exit(0);
 }
 
+if (!process.env.DATABASE_URL) {
+  console.error("");
+  console.error("DATABASE_URL is missing.");
+  console.error("Add your Neon Postgres connection string in Render: Service > Environment > Add Environment Variable.");
+  console.error("Example value: postgresql://USER:PASSWORD@HOST.neon.tech/DATABASE?sslmode=require");
+  console.error("");
+  process.exit(1);
+}
+
 function run(command, args) {
   const result = spawnSync(command, args, {
     stdio: "inherit",

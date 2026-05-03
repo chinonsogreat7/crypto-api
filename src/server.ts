@@ -2,7 +2,7 @@ import { createApp } from "./app";
 import { bootstrapDatabase } from "./data/persistence";
 
 const port = Number(process.env.PORT || 4200);
-const host = process.env.HOST || "127.0.0.1";
+const host = process.env.HOST || (process.env.RENDER === "true" ? "0.0.0.0" : "127.0.0.1");
 const app = createApp();
 
 async function main() {
