@@ -18,6 +18,11 @@ paths:
       responses:
         "200":
           description: API status
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/HealthResponse"
   /auth/register:
     post:
       security: []
@@ -42,6 +47,11 @@ paths:
       responses:
         "201":
           description: User and token
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AuthResponse"
   /auth/login:
     post:
       security: []
@@ -63,6 +73,11 @@ paths:
       responses:
         "200":
           description: User and token
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AuthResponse"
   /auth/otp/request:
     post:
       security: []
@@ -70,6 +85,11 @@ paths:
       responses:
         "200":
           description: Demo OTP code
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/OtpRequestResponse"
   /auth/otp/verify:
     post:
       security: []
@@ -77,12 +97,22 @@ paths:
       responses:
         "200":
           description: Verification result
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/OtpVerifyResponse"
   /auth/kyc:
     post:
       summary: Submit KYC for review
       responses:
         "201":
           description: KYC submission
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/KycResponse"
   /market/assets:
     get:
       security: []
@@ -90,6 +120,11 @@ paths:
       responses:
         "200":
           description: Asset list
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AssetListResponse"
   /market/assets/{symbol}:
     get:
       security: []
@@ -99,6 +134,11 @@ paths:
       responses:
         "200":
           description: Asset details
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AssetDetailResponse"
   /market/trending:
     get:
       security: []
@@ -106,40 +146,75 @@ paths:
       responses:
         "200":
           description: Trending assets
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AssetListResponse"
   /me:
     get:
       summary: Get current profile
       responses:
         "200":
           description: Current user
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/ProfileResponse"
     patch:
       summary: Update current profile
       responses:
         "200":
           description: Updated user
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/ProfileResponse"
   /me/settings:
     get:
       summary: Get user settings
       responses:
         "200":
           description: Settings
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/SettingsResponse"
     patch:
       summary: Update user settings
       responses:
         "200":
           description: Updated settings
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/SettingsResponse"
   /me/pin:
     patch:
       summary: Update transaction PIN
       responses:
         "200":
           description: PIN updated
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/UpdatedResponse"
   /me/watchlist:
     get:
       summary: List watchlist assets
       responses:
         "200":
           description: Watchlist assets
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AssetListResponse"
   /me/watchlist/{symbol}:
     post:
       summary: Add asset to watchlist
@@ -148,6 +223,11 @@ paths:
       responses:
         "200":
           description: Updated watchlist symbols
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/WatchlistSymbolsResponse"
     delete:
       summary: Remove asset from watchlist
       parameters:
@@ -155,12 +235,22 @@ paths:
       responses:
         "200":
           description: Updated watchlist symbols
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/WatchlistSymbolsResponse"
   /me/notifications:
     get:
       summary: List user notifications
       responses:
         "200":
           description: Notifications
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/NotificationsResponse"
   /me/notifications/{notificationId}/read:
     patch:
       summary: Mark one notification as read
@@ -173,24 +263,44 @@ paths:
       responses:
         "200":
           description: Updated notification
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/NotificationResponse"
   /me/notifications/read-all:
     patch:
       summary: Mark all notifications as read
       responses:
         "200":
           description: Update status
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/UpdatedResponse"
   /wallet:
     get:
       summary: Get wallet balances and portfolio value
       responses:
         "200":
           description: Wallet
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/WalletResponse"
   /wallet/deposit-addresses:
     get:
       summary: List deposit addresses
       responses:
         "200":
           description: Deposit addresses
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/DepositAddressesResponse"
   /wallet/deposit-addresses/{symbol}:
     get:
       summary: Get a deposit address and QR payload
@@ -199,12 +309,22 @@ paths:
       responses:
         "200":
           description: Deposit address
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/DepositAddressResponse"
   /wallet/transactions:
     get:
       summary: List user transactions
       responses:
         "200":
           description: Transaction list
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/TransactionListResponse"
   /wallet/transactions/{transactionId}:
     get:
       summary: Get transaction details
@@ -217,6 +337,11 @@ paths:
       responses:
         "200":
           description: Transaction detail
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/TransactionResponse"
   /wallet/deposit/simulate:
     post:
       summary: Simulate a sandbox USD deposit
@@ -234,6 +359,11 @@ paths:
       responses:
         "201":
           description: Deposit transaction
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/DepositResponse"
   /wallet/withdrawals:
     post:
       summary: Request a withdrawal
@@ -258,6 +388,11 @@ paths:
       responses:
         "201":
           description: Withdrawal request
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/WithdrawalResponse"
   /trade/quotes:
     post:
       summary: Create a buy, sell, or swap quote
@@ -285,6 +420,11 @@ paths:
       responses:
         "201":
           description: Quote
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/QuoteResponse"
   /trade/execute:
     post:
       summary: Execute a quote with transaction PIN
@@ -304,18 +444,33 @@ paths:
       responses:
         "201":
           description: Completed sandbox trade
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/TradeExecutionResponse"
   /admin/dashboard:
     get:
       summary: Admin metrics
       responses:
         "200":
           description: Dashboard metrics
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AdminDashboardResponse"
   /admin/users:
     get:
       summary: List customers
       responses:
         "200":
           description: Customers
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AdminUsersResponse"
   /admin/users/{userId}:
     get:
       summary: Get customer detail, wallet, and transactions
@@ -328,12 +483,22 @@ paths:
       responses:
         "200":
           description: Customer detail
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AdminUserDetailResponse"
   /admin/kyc:
     get:
       summary: List KYC submissions
       responses:
         "200":
           description: KYC submissions
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/KycListResponse"
   /admin/kyc/{kycId}:
     patch:
       summary: Approve or reject KYC
@@ -361,18 +526,33 @@ paths:
       responses:
         "200":
           description: Reviewed KYC
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/KycResponse"
   /admin/transactions:
     get:
       summary: List all transactions
       responses:
         "200":
           description: Transactions
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/TransactionListResponse"
   /admin/withdrawals:
     get:
       summary: List withdrawal requests
       responses:
         "200":
           description: Withdrawals
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/WithdrawalListResponse"
   /admin/withdrawals/{withdrawalId}:
     patch:
       summary: Approve or reject a withdrawal
@@ -400,12 +580,22 @@ paths:
       responses:
         "200":
           description: Reviewed withdrawal
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/WithdrawalResponse"
   /admin/assets:
     get:
       summary: List managed assets
       responses:
         "200":
           description: Assets
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AssetListResponse"
     post:
       summary: Add a managed asset
       requestBody:
@@ -446,12 +636,22 @@ paths:
       responses:
         "201":
           description: Created asset
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AssetResponse"
   /admin/fees:
     get:
       summary: Get trading fee settings
       responses:
         "200":
           description: Fee settings
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/FeeSettingsResponse"
     patch:
       summary: Update trading fee settings
       requestBody:
@@ -479,6 +679,11 @@ paths:
       responses:
         "200":
           description: Fee settings
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/FeeSettingsResponse"
 components:
   securitySchemes:
     bearerAuth:
@@ -492,3 +697,454 @@ components:
       schema:
         type: string
       example: BTC
+  examples:
+    HealthResponse:
+      summary: Healthy API
+      value:
+        status: ok
+        service: crypto-trade-api
+        timestamp: "2026-05-03T14:50:00.000Z"
+    AuthResponse:
+      summary: Authenticated user
+      value:
+        data:
+          user:
+            id: usr_student
+            role: customer
+            fullName: Ada Student
+            email: student@cryptoclass.test
+            phone: "+2348010000001"
+            kycStatus: approved
+            avatarUrl: null
+            watchlist: [BTC, ETH]
+            settings:
+              language: en
+              fiatCurrency: USD
+              theme: system
+              priceAlerts: true
+              pushNotifications: true
+              biometricEnabled: false
+            createdAt: "2026-05-03T14:00:00.000Z"
+          token: demo-user-token
+    OtpRequestResponse:
+      summary: Demo OTP sent
+      value:
+        data:
+          message: Demo OTP sent.
+          demoCode: "123456"
+          expiresInSeconds: 300
+    OtpVerifyResponse:
+      summary: OTP verified
+      value:
+        data:
+          verified: true
+    KycResponse:
+      summary: KYC submission
+      value:
+        data:
+          id: kyc_student
+          userId: usr_student
+          legalName: Ada Student
+          country: Nigeria
+          documentType: national_id
+          documentNumber: NIN-000-000
+          status: pending
+          submittedAt: "2026-05-03T14:05:00.000Z"
+          reviewedAt: null
+          reviewerNote: null
+    AssetResponse:
+      summary: Crypto asset
+      value:
+        data:
+          id: asset_btc
+          symbol: BTC
+          name: Bitcoin
+          network: Bitcoin Testnet
+          priceUsd: 64200.5
+          change24h: 2.1
+          isActive: true
+          minBuyUsd: 10
+          minSellUsd: 10
+          iconUrl: /assets/btc.svg
+    AssetListResponse:
+      summary: Asset list
+      value:
+        data:
+          - id: asset_btc
+            symbol: BTC
+            name: Bitcoin
+            network: Bitcoin Testnet
+            priceUsd: 64200.5
+            change24h: 2.1
+            isActive: true
+            minBuyUsd: 10
+            minSellUsd: 10
+            iconUrl: /assets/btc.svg
+          - id: asset_eth
+            symbol: ETH
+            name: Ethereum
+            network: Ethereum Sepolia
+            priceUsd: 3100.25
+            change24h: -0.8
+            isActive: true
+            minBuyUsd: 10
+            minSellUsd: 10
+            iconUrl: /assets/eth.svg
+        meta:
+          count: 2
+    AssetDetailResponse:
+      summary: Asset details with chart
+      value:
+        data:
+          id: asset_btc
+          symbol: BTC
+          name: Bitcoin
+          network: Bitcoin Testnet
+          priceUsd: 64200.5
+          change24h: 2.1
+          isActive: true
+          minBuyUsd: 10
+          minSellUsd: 10
+          iconUrl: /assets/btc.svg
+          chart:
+            - time: "09:00"
+              priceUsd: 62916.49
+            - time: "10:00"
+              priceUsd: 64842.51
+            - time: "11:00"
+              priceUsd: 63879.5
+            - time: "12:00"
+              priceUsd: 64200.5
+    ProfileResponse:
+      summary: Current profile
+      value:
+        data:
+          id: usr_student
+          role: customer
+          fullName: Ada Student
+          email: student@cryptoclass.test
+          phone: "+2348010000001"
+          kycStatus: approved
+          avatarUrl: null
+          watchlist: [BTC, ETH]
+          settings:
+            language: en
+            fiatCurrency: USD
+            theme: system
+            priceAlerts: true
+            pushNotifications: true
+            biometricEnabled: false
+          createdAt: "2026-05-03T14:00:00.000Z"
+    SettingsResponse:
+      summary: User settings
+      value:
+        data:
+          language: en
+          fiatCurrency: USD
+          theme: system
+          priceAlerts: true
+          pushNotifications: true
+          biometricEnabled: false
+    WatchlistSymbolsResponse:
+      summary: Watchlist symbols
+      value:
+        data: [BTC, ETH, SOL]
+    NotificationsResponse:
+      summary: Notifications
+      value:
+        data:
+          - id: ntf_kyc
+            userId: usr_student
+            title: KYC approved
+            body: Your account is ready for sandbox trading.
+            type: kyc
+            isRead: false
+            createdAt: "2026-05-03T14:08:00.000Z"
+        meta:
+          count: 1
+          unread: 1
+    NotificationResponse:
+      summary: Updated notification
+      value:
+        data:
+          id: ntf_kyc
+          userId: usr_student
+          title: KYC approved
+          body: Your account is ready for sandbox trading.
+          type: kyc
+          isRead: true
+          createdAt: "2026-05-03T14:08:00.000Z"
+    UpdatedResponse:
+      summary: Update result
+      value:
+        data:
+          updated: true
+    WalletResponse:
+      summary: Wallet with balances
+      value:
+        data:
+          wallet:
+            id: wallet_student
+            userId: usr_student
+            fiatCurrency: USD
+            depositAddresses:
+              - assetSymbol: USDC
+                network: Base Sepolia
+                address: "0x3333333333333333333333333333333333333333"
+                qrPayload: "ethereum:0x3333333333333333333333333333333333333333@84532"
+            balances:
+              - assetSymbol: USD
+                available: 1000
+                locked: 0
+              - assetSymbol: ETH
+                available: 0.25
+                locked: 0
+          portfolioValueUsd: 1775.06
+    DepositAddressesResponse:
+      summary: Deposit addresses
+      value:
+        data:
+          - assetSymbol: USDC
+            network: Base Sepolia
+            address: "0x3333333333333333333333333333333333333333"
+            qrPayload: "ethereum:0x3333333333333333333333333333333333333333@84532"
+        meta:
+          count: 1
+    DepositAddressResponse:
+      summary: Deposit address
+      value:
+        data:
+          assetSymbol: USDC
+          network: Base Sepolia
+          address: "0x3333333333333333333333333333333333333333"
+          qrPayload: "ethereum:0x3333333333333333333333333333333333333333@84532"
+    TransactionResponse:
+      summary: Transaction detail
+      value:
+        data:
+          id: txn_swap_001
+          userId: usr_student
+          type: swap
+          status: completed
+          fromAsset: ETH
+          toAsset: USDC
+          fromAmount: 0.1
+          toAmount: 306.12
+          feeAmount: 2.48
+          rate: 3100.25
+          reference: CRT-SWAP-1780000000000
+          note: Sandbox trade execution
+          createdAt: "2026-05-03T14:12:00.000Z"
+          completedAt: "2026-05-03T14:12:00.000Z"
+    TransactionListResponse:
+      summary: Transaction list
+      value:
+        data:
+          - id: txn_swap_001
+            userId: usr_student
+            type: swap
+            status: completed
+            fromAsset: ETH
+            toAsset: USDC
+            fromAmount: 0.1
+            toAmount: 306.12
+            feeAmount: 2.48
+            rate: 3100.25
+            reference: CRT-SWAP-1780000000000
+            note: Sandbox trade execution
+            createdAt: "2026-05-03T14:12:00.000Z"
+            completedAt: "2026-05-03T14:12:00.000Z"
+        meta:
+          count: 1
+    DepositResponse:
+      summary: Sandbox deposit
+      value:
+        data:
+          transaction:
+            id: txn_deposit_001
+            userId: usr_student
+            type: deposit
+            status: completed
+            fromAsset: USD
+            toAsset: USD
+            fromAmount: 500
+            toAmount: 500
+            feeAmount: 0
+            rate: 1
+            reference: CRT-DEP-1780000000000
+            note: Sandbox deposit
+            createdAt: "2026-05-03T14:10:00.000Z"
+            completedAt: "2026-05-03T14:10:00.000Z"
+          wallet:
+            id: wallet_student
+            userId: usr_student
+            fiatCurrency: USD
+            depositAddresses: []
+            balances:
+              - assetSymbol: USD
+                available: 1500
+                locked: 0
+    WithdrawalResponse:
+      summary: Withdrawal request
+      value:
+        data:
+          id: wd_001
+          userId: usr_student
+          assetSymbol: ETH
+          amount: 0.05
+          feeAssetAmount: 0.00064511
+          address: "0xabc123abc123abc123abc123abc123abc123abcd"
+          network: Ethereum Sepolia
+          status: pending
+          createdAt: "2026-05-03T14:20:00.000Z"
+          reviewedAt: null
+          reviewerNote: null
+    WithdrawalListResponse:
+      summary: Withdrawal requests
+      value:
+        data:
+          - id: wd_001
+            userId: usr_student
+            assetSymbol: ETH
+            amount: 0.05
+            feeAssetAmount: 0.00064511
+            address: "0xabc123abc123abc123abc123abc123abc123abcd"
+            network: Ethereum Sepolia
+            status: pending
+            createdAt: "2026-05-03T14:20:00.000Z"
+            reviewedAt: null
+            reviewerNote: null
+        meta:
+          count: 1
+    QuoteResponse:
+      summary: Trade quote
+      value:
+        data:
+          id: quote_001
+          type: swap
+          fromAsset: ETH
+          toAsset: USDC
+          fromAmount: 0.1
+          toAmount: 306.12
+          rate: 3100.25
+          feeAmount: 2.48
+          expiresAt: "2026-05-03T14:15:30.000Z"
+    TradeExecutionResponse:
+      summary: Executed trade
+      value:
+        data:
+          transaction:
+            id: txn_swap_001
+            userId: usr_student
+            type: swap
+            status: completed
+            fromAsset: ETH
+            toAsset: USDC
+            fromAmount: 0.1
+            toAmount: 306.12
+            feeAmount: 2.48
+            rate: 3100.25
+            reference: CRT-SWAP-1780000000000
+            note: Sandbox trade execution
+            createdAt: "2026-05-03T14:12:00.000Z"
+            completedAt: "2026-05-03T14:12:00.000Z"
+          wallet:
+            id: wallet_student
+            userId: usr_student
+            fiatCurrency: USD
+            depositAddresses: []
+            balances:
+              - assetSymbol: ETH
+                available: 0.15
+                locked: 0
+              - assetSymbol: USDC
+                available: 306.12
+                locked: 0
+    AdminDashboardResponse:
+      summary: Admin dashboard metrics
+      value:
+        data:
+          users: 12
+          pendingKyc: 3
+          pendingWithdrawals: 2
+          assets: 5
+          completedVolumeUsd: 48250.75
+    AdminUsersResponse:
+      summary: Customers
+      value:
+        data:
+          - id: usr_student
+            role: customer
+            fullName: Ada Student
+            email: student@cryptoclass.test
+            phone: "+2348010000001"
+            kycStatus: approved
+            avatarUrl: null
+            watchlist: [BTC, ETH]
+            settings:
+              language: en
+              fiatCurrency: USD
+              theme: system
+              priceAlerts: true
+              pushNotifications: true
+              biometricEnabled: false
+            createdAt: "2026-05-03T14:00:00.000Z"
+        meta:
+          count: 1
+    AdminUserDetailResponse:
+      summary: Customer detail
+      value:
+        data:
+          user:
+            id: usr_student
+            role: customer
+            fullName: Ada Student
+            email: student@cryptoclass.test
+            phone: "+2348010000001"
+            kycStatus: approved
+            avatarUrl: null
+            watchlist: [BTC, ETH]
+            settings:
+              language: en
+              fiatCurrency: USD
+              theme: system
+              priceAlerts: true
+              pushNotifications: true
+              biometricEnabled: false
+            createdAt: "2026-05-03T14:00:00.000Z"
+          wallet:
+            id: wallet_student
+            userId: usr_student
+            fiatCurrency: USD
+            depositAddresses: []
+            balances:
+              - assetSymbol: USD
+                available: 1000
+                locked: 0
+          portfolioValueUsd: 1000
+          transactions: []
+    KycListResponse:
+      summary: KYC submissions
+      value:
+        data:
+          - id: kyc_student
+            userId: usr_student
+            legalName: Ada Student
+            country: Nigeria
+            documentType: national_id
+            documentNumber: NIN-000-000
+            status: pending
+            submittedAt: "2026-05-03T14:05:00.000Z"
+            reviewedAt: null
+            reviewerNote: null
+        meta:
+          count: 1
+    FeeSettingsResponse:
+      summary: Fee settings
+      value:
+        data:
+          buyFeePercent: 1
+          sellFeePercent: 1.2
+          swapFeePercent: 0.8
+          withdrawalFlatUsd: 2
+          spreadPercent: 0.4
