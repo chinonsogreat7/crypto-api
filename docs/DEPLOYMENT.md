@@ -70,6 +70,8 @@ After creating the service, set `DATABASE_URL` in Render environment variables.
 
 If Render logs show `Cannot find module '/opt/render/project/src/dist/src/server.js'`, the service is only installing dependencies and is not compiling TypeScript. Update the Render Build Command to the value above, then redeploy.
 
+The repo also includes a guarded `postinstall` fallback for Render. If the dashboard accidentally keeps `npm install` as the Build Command, Render still runs the TypeScript build because it sets `RENDER=true` during builds. Local installs skip this fallback.
+
 With `autoDeployTrigger: commit` in `render.yaml`, Render deploys automatically whenever a commit is pushed to the linked `main` branch. If the service was created manually instead of from the Blueprint, enable this in the Render Dashboard under **Settings > Auto-Deploy > On Commit**.
 
 ## 5. Seed Demo Data
