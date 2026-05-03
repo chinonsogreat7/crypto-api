@@ -1,5 +1,20 @@
 export type FiatCurrency = "USD" | "NGN";
-export type AssetSymbol = "BTC" | "ETH" | "USDC" | "SOL" | "MATIC" | "LINK";
+export type AssetSymbol =
+  | "BTC"
+  | "ETH"
+  | "USDC"
+  | "USDT"
+  | "BNB"
+  | "SOL"
+  | "XRP"
+  | "ADA"
+  | "DOGE"
+  | "AVAX"
+  | "DOT"
+  | "LTC"
+  | "TRX"
+  | "MATIC"
+  | "LINK";
 export type KycStatus = "not_started" | "pending" | "approved" | "rejected";
 export type TransactionType = "buy" | "sell" | "swap" | "deposit" | "withdrawal";
 export type TransactionStatus = "pending" | "completed" | "failed" | "cancelled" | "requires_review";

@@ -60,6 +60,8 @@ The mobile app side covers onboarding, auth, OTP, profile, settings, notificatio
 
 The admin side covers dashboard metrics, users, KYC reviews, assets, fee settings, transactions, deposit simulation, and withdrawal approval.
 
+The default market includes BTC, ETH, USDC, USDT, BNB, SOL, XRP, ADA, DOGE, AVAX, DOT, LTC, TRX, MATIC, and LINK. On startup, the API adds any missing default assets to an existing hosted database without resetting user data.
+
 ## Teaching Path
 
 1. Start with public market data and auth.

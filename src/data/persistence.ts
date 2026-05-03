@@ -28,9 +28,20 @@ export async function bootstrapDatabase(): Promise<void> {
   const userCount = await prisma.user.count();
   if (userCount === 0) {
     await seedDatabase(initialData);
+  } else {
+    await syncDefaultAssets();
   }
 
   replaceDatabase(await loadDatabase());
+}
+
+async function syncDefaultAssets(): Promise<void> {
+  for (const asset of initialData.assets) {
+    const existing = await prisma.asset.findUnique({ where: { symbol: asset.symbol } });
+    if (!existing) {
+      await prisma.asset.create({ data: asset });
+    }
+  }
 }
 
 export async function loadDatabase(): Promise<Database> {
