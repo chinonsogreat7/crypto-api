@@ -151,6 +151,18 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/AssetListResponse"
+  /market/prices:
+    get:
+      security: []
+      summary: List simulated live market prices
+      responses:
+        "200":
+          description: Simulated live price feed
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/PriceFeedResponse"
   /me:
     get:
       summary: Get current profile
@@ -815,6 +827,27 @@ components:
               priceUsd: 63879.5
             - time: "12:00"
               priceUsd: 64200.5
+    PriceFeedResponse:
+      summary: Simulated live price feed
+      value:
+        data:
+          - symbol: BTC
+            name: Bitcoin
+            priceUsd: 68471.32
+            change24h: 2.47
+            updatedAt: "2026-05-03T14:20:10.000Z"
+          - symbol: ETH
+            name: Ethereum
+            priceUsd: 3416.82
+            change24h: -1.18
+            updatedAt: "2026-05-03T14:20:10.000Z"
+        meta:
+          count: 2
+          market:
+            mode: simulated_live_market
+            source: backend price simulator
+            lastUpdatedAt: "2026-05-03T14:20:10.000Z"
+            tickIntervalMs: 10000
     ProfileResponse:
       summary: Current profile
       value:

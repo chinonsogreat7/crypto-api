@@ -18,6 +18,7 @@ Useful URLs:
 - `GET /health`
 - `GET /docs`
 - `GET /openapi.yaml`
+- `GET /market/prices`
 - `GET /admin-ui`
 
 Database commands:

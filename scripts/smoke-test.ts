@@ -32,6 +32,7 @@ async function main() {
   try {
     await request("/health");
     await request("/market/assets");
+    await request("/market/prices");
     await request("/market/trending");
     await request("/me", { headers: userHeaders });
     await request("/me/settings", { headers: userHeaders });

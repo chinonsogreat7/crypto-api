@@ -6,6 +6,8 @@ const state = {
   withdrawals: [],
   transactions: [],
   assets: [],
+  previousPrices: {},
+  market: null,
   fees: null
 };
 
@@ -46,6 +48,18 @@ async function api(path, options = {}) {
   return body.data;
 }
 
+async function apiEnvelope(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: headers(options.headers || {})
+  });
+  const body = await response.json();
+  if (!response.ok) {
+    throw new Error(body.error?.message || "Request failed");
+  }
+  return body;
+}
+
 function money(value) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0));
 }
@@ -57,6 +71,11 @@ function number(value, digits = 4) {
 function date(value) {
   if (!value) return "Not reviewed";
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function time(value) {
+  if (!value) return "waiting";
+  return new Intl.DateTimeFormat("en", { timeStyle: "medium" }).format(new Date(value));
 }
 
 function safe(text) {
@@ -90,13 +109,13 @@ function setView(view) {
 }
 
 async function loadAll() {
-  const [dashboard, users, kyc, withdrawals, transactions, assets, fees] = await Promise.all([
+  const [dashboard, users, kyc, withdrawals, transactions, assetsResponse, fees] = await Promise.all([
     api("/admin/dashboard"),
     api("/admin/users"),
     api("/admin/kyc"),
     api("/admin/withdrawals"),
     api("/admin/transactions"),
-    api("/admin/assets"),
+    apiEnvelope("/admin/assets"),
     api("/admin/fees")
   ]);
 
@@ -105,9 +124,20 @@ async function loadAll() {
   state.kyc = kyc;
   state.withdrawals = withdrawals;
   state.transactions = transactions;
-  state.assets = assets;
+  state.previousPrices = Object.fromEntries(state.assets.map((asset) => [asset.symbol, asset.priceUsd]));
+  state.assets = assetsResponse.data;
+  state.market = assetsResponse.meta?.market || null;
   state.fees = fees;
   render();
+}
+
+async function loadAssets() {
+  const assetsResponse = await apiEnvelope("/admin/assets");
+  state.previousPrices = Object.fromEntries(state.assets.map((asset) => [asset.symbol, asset.priceUsd]));
+  state.assets = assetsResponse.data;
+  state.market = assetsResponse.meta?.market || null;
+  renderOverview();
+  renderAssets();
 }
 
 function inferFeesFromForm() {
@@ -221,13 +251,23 @@ function renderTransactions() {
 }
 
 function renderAssets() {
+  const marketStatus = document.querySelector("#market-status");
+  if (marketStatus) {
+    marketStatus.textContent = `Live sim updated ${time(state.market?.lastUpdatedAt)}`;
+  }
+
   document.querySelector("#assets-table").innerHTML = state.assets
     .map((asset) => {
+      const previousPrice = state.previousPrices[asset.symbol];
+      const direction =
+        previousPrice === undefined || previousPrice === asset.priceUsd ? "" : asset.priceUsd > previousPrice ? "price-up" : "price-down";
+      const changeClass = asset.change24h >= 0 ? "price-up" : "price-down";
+
       return `<tr>
         <td><strong>${safe(asset.symbol)}</strong><br><span class="muted">${safe(asset.name)}</span></td>
         <td>${safe(asset.network)}</td>
-        <td>${money(asset.priceUsd)}</td>
-        <td>${number(asset.change24h, 2)}%</td>
+        <td class="${direction}">${money(asset.priceUsd)}</td>
+        <td class="${changeClass}">${number(asset.change24h, 2)}%</td>
         <td>${statusChip(asset.isActive ? "active" : "inactive")}</td>
       </tr>`;
     })
@@ -348,3 +388,7 @@ document.querySelector("#fees-form").addEventListener("submit", async (event) =>
 });
 
 loadAll().catch((error) => showAlert(error.message, "error"));
+
+window.setInterval(() => {
+  loadAssets().catch(() => {});
+}, 10000);

@@ -1,5 +1,6 @@
 import express from "express";
 import { clone, db } from "../data/store";
+import { assetHistory, marketMeta } from "../data/market-simulator";
 import { notFound, ok } from "../utils/http";
 
 export const marketRouter = express.Router();
@@ -10,7 +11,7 @@ marketRouter.get("/assets", (req, res) => {
     return asset.isActive && (!q || asset.name.toLowerCase().includes(q) || asset.symbol.toLowerCase().includes(q));
   });
 
-  return ok(res, clone(assets), { count: assets.length });
+  return ok(res, clone(assets), { count: assets.length, market: marketMeta() });
 });
 
 marketRouter.get("/assets/:symbol", (req, res) => {
@@ -21,13 +22,22 @@ marketRouter.get("/assets/:symbol", (req, res) => {
 
   return ok(res, {
     ...clone(asset),
-    chart: [
-      { time: "09:00", priceUsd: asset.priceUsd * 0.98 },
-      { time: "10:00", priceUsd: asset.priceUsd * 1.01 },
-      { time: "11:00", priceUsd: asset.priceUsd * 0.995 },
-      { time: "12:00", priceUsd: asset.priceUsd }
-    ]
+    chart: assetHistory(asset.symbol)
   });
+});
+
+marketRouter.get("/prices", (req, res) => {
+  const prices = db.assets
+    .filter((asset) => asset.isActive)
+    .map((asset) => ({
+      symbol: asset.symbol,
+      name: asset.name,
+      priceUsd: asset.priceUsd,
+      change24h: asset.change24h,
+      updatedAt: marketMeta().lastUpdatedAt
+    }));
+
+  return ok(res, prices, { count: prices.length, market: marketMeta() });
 });
 
 marketRouter.get("/trending", (req, res) => {
@@ -36,5 +46,5 @@ marketRouter.get("/trending", (req, res) => {
     .sort((a, b) => b.change24h - a.change24h)
     .slice(0, 4);
 
-  return ok(res, trending);
+  return ok(res, trending, { count: trending.length, market: marketMeta() });
 });

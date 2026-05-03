@@ -388,6 +388,26 @@ td {
   color: var(--muted);
 }
 
+.market-status {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.price-up {
+  color: var(--ok);
+  font-weight: 800;
+}
+
+.price-down {
+  color: var(--bad);
+  font-weight: 800;
+}
+
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }

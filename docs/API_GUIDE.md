@@ -74,6 +74,7 @@ List responses may also include `meta`:
 | Home dashboard | `GET /wallet`, `GET /market/trending`, `GET /me/notifications` |
 | Market list | `GET /market/assets` |
 | Asset details | `GET /market/assets/:symbol` |
+| Simulated live prices | `GET /market/prices` |
 | Watchlist | `GET /me/watchlist`, `POST /me/watchlist/:symbol`, `DELETE /me/watchlist/:symbol` |
 | Wallet | `GET /wallet` |
 | Deposit or QR code | `GET /wallet/deposit-addresses`, `GET /wallet/deposit-addresses/:symbol` |
@@ -149,6 +150,20 @@ Content-Type: application/json
   "reviewerNote": "Approved for classroom demo."
 }
 ```
+
+## Simulated Live Market Prices
+
+The backend runs a free classroom market simulator. Asset prices move automatically every few seconds, and all wallet values, trade quotes, market lists, and admin asset screens read from the same changing prices.
+
+Students can poll this endpoint from the mobile app:
+
+```http
+GET /market/prices
+```
+
+The response includes `meta.market.lastUpdatedAt` and `meta.market.tickIntervalMs`, so students can show when prices were last refreshed and choose a sensible polling interval.
+
+This is not connected to real exchanges. It is designed to behave like a live market feed without API keys, rate limits, or real-money risk.
 
 ## Trading Flow
 

@@ -1,5 +1,6 @@
 import express, { type Request } from "express";
 import { clone, createId, db, findBalance, getWallet, portfolioValueUsd, publicUser } from "../data/store";
+import { marketMeta } from "../data/market-simulator";
 import { requireAdmin, requireAuth } from "../middleware/auth";
 import type { Asset, KycStatus } from "../models";
 import { badRequest, created, notFound, ok } from "../utils/http";
@@ -110,7 +111,7 @@ adminRouter.patch("/withdrawals/:withdrawalId", (req: Request<{ withdrawalId: st
 });
 
 adminRouter.get("/assets", (req, res) => {
-  return ok(res, clone(db.assets), { count: db.assets.length });
+  return ok(res, clone(db.assets), { count: db.assets.length, market: marketMeta() });
 });
 
 adminRouter.post("/assets", (req: Request<unknown, unknown, Omit<Asset, "id">>, res) => {
