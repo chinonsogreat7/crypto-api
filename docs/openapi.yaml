@@ -172,6 +172,18 @@ paths:
     post:
       security: []
       summary: Request demo OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: student@cryptoclass.test
       responses:
         "200":
           description: Demo OTP code
@@ -184,6 +196,21 @@ paths:
     post:
       security: []
       summary: Verify demo OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: student@cryptoclass.test
+                code:
+                  type: string
+                  example: "123456"
       responses:
         "200":
           description: Verification result
@@ -234,6 +261,14 @@ paths:
     get:
       security: []
       summary: List supported crypto assets
+      parameters:
+        - in: query
+          name: q
+          required: false
+          description: Optional search text for asset name or symbol.
+          schema:
+            type: string
+          example: btc
       responses:
         "200":
           description: Asset list
@@ -293,6 +328,24 @@ paths:
                   $ref: "#/components/examples/ProfileResponse"
     patch:
       summary: Update current profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                fullName:
+                  type: string
+                  example: Ada Student
+                phone:
+                  type: string
+                  example: "+2348010000001"
+                avatarUrl:
+                  type: string
+                  nullable: true
+                  example: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=240&h=240&fit=crop&crop=faces
       responses:
         "200":
           description: Updated user
@@ -314,6 +367,30 @@ paths:
                   $ref: "#/components/examples/SettingsResponse"
     patch:
       summary: Update user settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                theme:
+                  type: string
+                  enum: [light, dark, system]
+                  example: dark
+                priceAlerts:
+                  type: boolean
+                  example: true
+                pushNotifications:
+                  type: boolean
+                  example: true
+                biometricEnabled:
+                  type: boolean
+                  example: false
+                fiatCurrency:
+                  type: string
+                  example: USD
       responses:
         "200":
           description: Updated settings
@@ -325,6 +402,22 @@ paths:
   /me/pin:
     patch:
       summary: Update transaction PIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPin, newPin]
+              properties:
+                currentPin:
+                  type: string
+                  example: "0000"
+                newPin:
+                  type: string
+                  minLength: 4
+                  maxLength: 6
+                  example: "1234"
       responses:
         "200":
           description: PIN updated
@@ -472,6 +565,15 @@ paths:
   /wallet/transactions:
     get:
       summary: List user transactions
+      parameters:
+        - in: query
+          name: status
+          required: false
+          description: Optional transaction status filter.
+          schema:
+            type: string
+            enum: [pending, completed, failed, cancelled]
+          example: completed
       responses:
         "200":
           description: Transaction list
