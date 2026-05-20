@@ -30,6 +30,7 @@ function run(command, args) {
 }
 
 copyFileSync("prisma/schema.postgres.prisma", "prisma/schema.prisma");
+run("node", ["scripts/render-db-compat.cjs"]);
 run("npx", ["prisma", "generate"]);
 run("npx", ["prisma", "db", "push"]);
 run("npm", ["run", "build"]);

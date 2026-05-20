@@ -10,7 +10,7 @@
     "dev": "tsx watch src/server.ts",
     "postinstall": "node scripts/render-postinstall.cjs",
     "prisma:studio": "prisma studio",
-    "render-build": "cp prisma/schema.postgres.prisma prisma/schema.prisma && npx prisma generate && npx prisma db push && npm run build",
+    "render-build": "cp prisma/schema.postgres.prisma prisma/schema.prisma && node scripts/render-db-compat.cjs && npx prisma generate && npx prisma db push && npm run build",
     "start": "node dist/src/server.js",
     "smoke": "tsx scripts/smoke-test.ts",
     "typecheck": "tsc --noEmit"
