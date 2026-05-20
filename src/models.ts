@@ -30,6 +30,7 @@ export interface User {
   pin: string;
   twoFactorEnabled: boolean;
   twoFactorSecret: string | null;
+  twoFactorRecoveryCodes: string[];
   kycStatus: KycStatus;
   avatarUrl: string | null;
   watchlist: AssetSymbol[];
@@ -37,7 +38,7 @@ export interface User {
   createdAt: string;
 }
 
-export type PublicUser = Omit<User, "password" | "pin" | "twoFactorSecret">;
+export type PublicUser = Omit<User, "password" | "pin" | "twoFactorSecret" | "twoFactorRecoveryCodes">;
 
 export interface UserSettings {
   language: "en";
@@ -191,6 +192,7 @@ export interface DeviceToken {
 export interface TwoFactorChallenge {
   id: string;
   userId: string;
+  attemptsRemaining: number;
   expiresAt: string;
 }
 

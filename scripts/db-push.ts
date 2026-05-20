@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS "User" (
   "pin" TEXT NOT NULL,
   "twoFactorEnabled" BOOLEAN NOT NULL DEFAULT false,
   "twoFactorSecret" TEXT,
+  "twoFactorRecoveryCodes" TEXT NOT NULL DEFAULT '[]',
   "kycStatus" TEXT NOT NULL,
   "avatarUrl" TEXT,
   "watchlist" TEXT NOT NULL,
@@ -209,6 +210,7 @@ addColumnIfMissing("KycSubmission", "selfieImageUrl", "TEXT");
 addColumnIfMissing("KycSubmission", "documentImageUrl", "TEXT");
 addColumnIfMissing("User", "twoFactorEnabled", "BOOLEAN NOT NULL DEFAULT false");
 addColumnIfMissing("User", "twoFactorSecret", "TEXT");
+addColumnIfMissing("User", "twoFactorRecoveryCodes", "TEXT NOT NULL DEFAULT '[]'");
 addColumnIfMissing("Session", "refreshToken", "TEXT NOT NULL DEFAULT ''");
 addColumnIfMissing("Session", "accessTokenExpiresAt", "DATETIME NOT NULL DEFAULT '2099-01-01T00:00:00.000Z'");
 addColumnIfMissing("Session", "refreshTokenExpiresAt", "DATETIME NOT NULL DEFAULT '2099-01-31T00:00:00.000Z'");

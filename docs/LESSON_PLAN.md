@@ -8,7 +8,7 @@ Students should start with `GET /health`, `GET /market/assets`, and Swagger at `
 
 ## Lesson 2: Authentication
 
-Use `POST /auth/login` and store the returned `accessToken` and `refreshToken` on the client. Then call `GET /me` with `Authorization: Bearer <accessToken>`. Students should learn why protected routes reject requests without `Authorization`, and why mobile apps refresh short-lived access tokens instead of asking users to log in again every few minutes.
+Use `POST /auth/login` and store the returned `accessToken` and `refreshToken` on the client. Then call `GET /me` with `Authorization: Bearer <accessToken>`. Students should learn why protected routes reject requests without `Authorization`, why mobile apps refresh short-lived access tokens, and how 2FA recovery codes plus attempt limits protect the login flow.
 
 ## Lesson 3: Wallet And Market Data
 

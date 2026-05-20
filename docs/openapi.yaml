@@ -209,6 +209,7 @@ paths:
     post:
       tags: [Auth]
       summary: Enable authenticator app 2FA
+      description: Returns one-time recovery codes. Store them on the client or show them once to the user; the API stores only hashed versions.
       requestBody:
         required: true
         content:
@@ -239,7 +240,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [challengeId, code]
+              required: [challengeId]
               properties:
                 challengeId:
                   type: string
@@ -247,6 +248,10 @@ paths:
                 code:
                   type: string
                   example: "123456"
+                recoveryCode:
+                  type: string
+                  description: Use one recovery code instead of an authenticator code when the user lost their authenticator app.
+                  example: "A1B2C-D3E4F"
       responses:
         "200":
           description: User, access token, and refresh token
@@ -255,10 +260,11 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/AuthResponse"
-  /auth/2fa/disable:
+  /auth/2fa/recovery-codes/regenerate:
     post:
       tags: [Auth]
-      summary: Disable authenticator app 2FA
+      summary: Regenerate 2FA recovery codes
+      description: Invalidates all old recovery codes and returns a fresh set. Requires password plus a current authenticator code.
       requestBody:
         required: true
         content:
@@ -273,6 +279,35 @@ paths:
                 code:
                   type: string
                   example: "123456"
+      responses:
+        "200":
+          description: Fresh recovery codes
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/TwoFactorRecoveryCodesResponse"
+  /auth/2fa/disable:
+    post:
+      tags: [Auth]
+      summary: Disable authenticator app 2FA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  example: password123
+                code:
+                  type: string
+                  example: "123456"
+                recoveryCode:
+                  type: string
+                  example: "A1B2C-D3E4F"
       responses:
         "200":
           description: 2FA disabled
@@ -1481,6 +1516,7 @@ components:
         data:
           requiresTwoFactor: true
           challengeId: 2fa_abc123
+          attemptsRemaining: 5
           expiresAt: "2026-05-03T14:55:00.000Z"
     TwoFactorSetupResponse:
       summary: Authenticator setup
@@ -1494,11 +1530,24 @@ components:
       value:
         data:
           enabled: true
+          recoveryCodes:
+            - "A1B2C-D3E4F"
+            - "8A9B0-C1D2E"
+          recoveryCodeCount: 8
+    TwoFactorRecoveryCodesResponse:
+      summary: Fresh 2FA recovery codes
+      value:
+        data:
+          recoveryCodes:
+            - "A1B2C-D3E4F"
+            - "8A9B0-C1D2E"
+          recoveryCodeCount: 8
     TwoFactorDisabledResponse:
       summary: 2FA disabled
       value:
         data:
           enabled: false
+          recoveryCodeCount: 0
     OtpRequestResponse:
       summary: Demo OTP sent
       value:

@@ -17,6 +17,7 @@ model User {
   pin            String
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
+  twoFactorRecoveryCodes String @default("[]")
   kycStatus      String
   avatarUrl      String?
   watchlist      String

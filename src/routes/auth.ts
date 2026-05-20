@@ -1,6 +1,7 @@
 import express, { type Request } from "express";
 import { clone, createId, db, publicUser } from "../data/store";
 import { requireAuth } from "../middleware/auth";
+import { createRecoveryCodes, recoveryCodeCount, verifyAndConsumeRecoveryCode } from "../services/recovery-codes";
 import { createKycUpload, type KycUploadRequest } from "../services/storage";
 import { createSession, findSessionByRefreshToken, rotateSession, tokenMetadata } from "../services/tokens";
 import { generateTotpSecret, otpauthUri, verifyTotpCode } from "../services/totp";
@@ -18,6 +19,7 @@ import {
 } from "../utils/validation";
 
 export const authRouter = express.Router();
+const TWO_FACTOR_MAX_ATTEMPTS = 5;
 
 interface LoginBody {
   loginType?: "email" | "phone";
@@ -29,6 +31,7 @@ interface LoginBody {
 interface TwoFactorVerifyBody {
   challengeId?: string;
   code?: string;
+  recoveryCode?: string;
 }
 
 interface RefreshBody {
@@ -83,9 +86,22 @@ function createTwoFactorChallenge(user: User) {
   const challenge = {
     id: createId("2fa"),
     userId: user.id,
+    attemptsRemaining: TWO_FACTOR_MAX_ATTEMPTS,
     expiresAt: new Date(now + 5 * 60 * 1000).toISOString()
   };
   db.twoFactorChallenges.push(challenge);
+  return challenge;
+}
+
+function failTwoFactorChallenge(challengeId: string) {
+  const challenge = db.twoFactorChallenges.find((item) => item.id === challengeId);
+  if (!challenge) return null;
+
+  challenge.attemptsRemaining -= 1;
+  if (challenge.attemptsRemaining <= 0) {
+    db.twoFactorChallenges = db.twoFactorChallenges.filter((item) => item.id !== challengeId);
+  }
+
   return challenge;
 }
 
@@ -193,6 +209,7 @@ authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res)
     pin: "0000",
     twoFactorEnabled: false,
     twoFactorSecret: null,
+    twoFactorRecoveryCodes: [],
     kycStatus: "not_started",
     avatarUrl: null,
     watchlist: ["BTC", "ETH"],
@@ -263,6 +280,7 @@ authRouter.post("/login", (req: Request<unknown, unknown, LoginBody>, res) => {
     return ok(res, {
       requiresTwoFactor: true,
       challengeId: challenge.id,
+      attemptsRemaining: challenge.attemptsRemaining,
       expiresAt: challenge.expiresAt
     });
   }
@@ -275,6 +293,7 @@ authRouter.post("/2fa/setup", requireAuth, (req, res) => {
   const secret = generateTotpSecret();
   req.user.twoFactorSecret = secret;
   req.user.twoFactorEnabled = false;
+  req.user.twoFactorRecoveryCodes = [];
 
   return ok(res, {
     secret,
@@ -293,13 +312,24 @@ authRouter.post("/2fa/enable", requireAuth, (req: Request<unknown, unknown, { co
   }
 
   req.user.twoFactorEnabled = true;
-  return ok(res, { enabled: true });
+  const recoveryCodes = createRecoveryCodes();
+  req.user.twoFactorRecoveryCodes = recoveryCodes.hashes;
+
+  return ok(res, {
+    enabled: true,
+    recoveryCodes: recoveryCodes.codes,
+    recoveryCodeCount: recoveryCodes.codes.length
+  });
 });
 
 authRouter.post("/2fa/verify", (req: Request<unknown, unknown, TwoFactorVerifyBody>, res) => {
-  const { challengeId, code } = req.body;
-  if (!challengeId || !code) {
-    return badRequest(res, "challengeId and code are required.");
+  const { challengeId, code, recoveryCode } = req.body;
+  if (!challengeId || (!code && !recoveryCode)) {
+    return badRequest(res, "challengeId and either code or recoveryCode are required.");
+  }
+
+  if (code && recoveryCode) {
+    return badRequest(res, "Send either code or recoveryCode, not both.", "INVALID_TWO_FACTOR_METHOD");
   }
 
   const challenge = db.twoFactorChallenges.find((item) => item.id === challengeId);
@@ -308,8 +338,27 @@ authRouter.post("/2fa/verify", (req: Request<unknown, unknown, TwoFactorVerifyBo
   }
 
   const user = db.users.find((item) => item.id === challenge.userId);
-  if (!user?.twoFactorSecret || !verifyTotpCode(user.twoFactorSecret, code)) {
-    return badRequest(res, "Invalid authenticator code.", "INVALID_TWO_FACTOR_CODE");
+  const verifiedByCode = Boolean(code && user?.twoFactorSecret && verifyTotpCode(user.twoFactorSecret, code));
+  const verifiedByRecoveryCode = Boolean(recoveryCode && user && verifyAndConsumeRecoveryCode(user, recoveryCode));
+
+  if (!user || (!verifiedByCode && !verifiedByRecoveryCode)) {
+    const updatedChallenge = failTwoFactorChallenge(challenge.id);
+    if (!updatedChallenge || updatedChallenge.attemptsRemaining <= 0) {
+      return res.status(429).json({
+        error: {
+          code: "TWO_FACTOR_ATTEMPTS_EXHAUSTED",
+          message: "Too many invalid 2FA attempts. Start login again."
+        }
+      });
+    }
+
+    return res.status(400).json({
+      error: {
+        code: "INVALID_TWO_FACTOR_CODE",
+        message: "Invalid authenticator code or recovery code.",
+        attemptsRemaining: updatedChallenge.attemptsRemaining
+      }
+    });
   }
 
   db.twoFactorChallenges = db.twoFactorChallenges.filter((item) => item.id !== challenge.id);
@@ -317,18 +366,45 @@ authRouter.post("/2fa/verify", (req: Request<unknown, unknown, TwoFactorVerifyBo
   return ok(res, authResponse(user, session));
 });
 
-authRouter.post("/2fa/disable", requireAuth, (req: Request<unknown, unknown, { password?: string; code?: string }>, res) => {
+authRouter.post("/2fa/recovery-codes/regenerate", requireAuth, (req: Request<unknown, unknown, { password?: string; code?: string }>, res) => {
+  if (!req.user.twoFactorEnabled || !req.user.twoFactorSecret) {
+    return badRequest(res, "2FA must be enabled before regenerating recovery codes.", "TWO_FACTOR_NOT_ENABLED");
+  }
+
   if (!req.body.password || req.body.password !== req.user.password) {
     return badRequest(res, "password is required and must match the current user.", "INVALID_PASSWORD");
   }
 
-  if (req.user.twoFactorSecret && (!req.body.code || !verifyTotpCode(req.user.twoFactorSecret, req.body.code))) {
+  if (!req.body.code || !verifyTotpCode(req.user.twoFactorSecret, req.body.code)) {
     return badRequest(res, "Invalid authenticator code.", "INVALID_TWO_FACTOR_CODE");
+  }
+
+  const recoveryCodes = createRecoveryCodes();
+  req.user.twoFactorRecoveryCodes = recoveryCodes.hashes;
+  return ok(res, {
+    recoveryCodes: recoveryCodes.codes,
+    recoveryCodeCount: recoveryCodes.codes.length
+  });
+});
+
+authRouter.post("/2fa/disable", requireAuth, (req: Request<unknown, unknown, { password?: string; code?: string; recoveryCode?: string }>, res) => {
+  if (!req.body.password || req.body.password !== req.user.password) {
+    return badRequest(res, "password is required and must match the current user.", "INVALID_PASSWORD");
+  }
+
+  if (req.user.twoFactorSecret) {
+    const verifiedByCode = Boolean(req.body.code && verifyTotpCode(req.user.twoFactorSecret, req.body.code));
+    const verifiedByRecoveryCode = Boolean(req.body.recoveryCode && verifyAndConsumeRecoveryCode(req.user, req.body.recoveryCode));
+
+    if (!verifiedByCode && !verifiedByRecoveryCode) {
+      return badRequest(res, "Invalid authenticator code or recovery code.", "INVALID_TWO_FACTOR_CODE");
+    }
   }
 
   req.user.twoFactorEnabled = false;
   req.user.twoFactorSecret = null;
-  return ok(res, { enabled: false });
+  req.user.twoFactorRecoveryCodes = [];
+  return ok(res, { enabled: false, recoveryCodeCount: recoveryCodeCount(req.user) });
 });
 
 authRouter.post("/otp/request", (req: Request<unknown, unknown, { email?: string }>, res) => {

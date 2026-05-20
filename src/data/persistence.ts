@@ -103,6 +103,7 @@ export async function loadDatabase(): Promise<Database> {
       pin: user.pin,
       twoFactorEnabled: user.twoFactorEnabled,
       twoFactorSecret: user.twoFactorSecret,
+      twoFactorRecoveryCodes: JSON.parse(user.twoFactorRecoveryCodes || "[]") as string[],
       kycStatus: user.kycStatus as KycStatus,
       avatarUrl: user.avatarUrl,
       watchlist: JSON.parse(user.watchlist) as AssetSymbol[],
@@ -268,6 +269,7 @@ export async function saveDatabase(data: Database): Promise<void> {
       await tx.user.create({
         data: {
           ...user,
+          twoFactorRecoveryCodes: JSON.stringify(user.twoFactorRecoveryCodes),
           watchlist: JSON.stringify(user.watchlist),
           settings: JSON.stringify(user.settings),
           createdAt: new Date(user.createdAt)

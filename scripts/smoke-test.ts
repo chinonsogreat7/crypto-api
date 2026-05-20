@@ -97,10 +97,19 @@ async function main() {
     });
     const twoFactorCode = generateTotpCode(setupBody.data.secret);
 
-    await request("/auth/2fa/enable", {
+    const enableBody = await request("/auth/2fa/enable", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
       body: JSON.stringify({ code: twoFactorCode })
+    });
+    if (!Array.isArray(enableBody.data.recoveryCodes) || enableBody.data.recoveryCodes.length !== 8) {
+      throw new Error("2FA enable did not return recovery codes");
+    }
+
+    const regeneratedCodesBody = await request("/auth/2fa/recovery-codes/regenerate", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ password: "password123", code: generateTotpCode(setupBody.data.secret) })
     });
 
     const challengeBody = await request("/auth/login", {
@@ -108,11 +117,19 @@ async function main() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ loginType: "email", identifier: "student@cryptoclass.test", password: "password123" })
     });
+    if (challengeBody.data.attemptsRemaining !== 5) {
+      throw new Error("2FA login challenge did not include attemptsRemaining");
+    }
 
+    await expectBadRequest("/auth/2fa/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ challengeId: challengeBody.data.challengeId, code: "abc123" })
+    }, "invalid 2FA attempt");
     await request("/auth/2fa/verify", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ challengeId: challengeBody.data.challengeId, code: generateTotpCode(setupBody.data.secret) })
+      body: JSON.stringify({ challengeId: challengeBody.data.challengeId, recoveryCode: regeneratedCodesBody.data.recoveryCodes[0] })
     });
 
     await request("/auth/2fa/disable", {

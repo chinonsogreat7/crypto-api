@@ -34,7 +34,7 @@ export function createId(prefix: string): string {
 }
 
 export function publicUser(user: User): PublicUser {
-  const { password, pin, twoFactorSecret, ...safeUser } = user;
+  const { password, pin, twoFactorSecret, twoFactorRecoveryCodes, ...safeUser } = user;
   return clone(safeUser);
 }
 

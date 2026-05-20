@@ -175,6 +175,7 @@ If optional authenticator 2FA is enabled, login returns a challenge instead of a
   "data": {
     "requiresTwoFactor": true,
     "challengeId": "2fa_abc123",
+    "attemptsRemaining": 5,
     "expiresAt": "2026-05-03T14:55:00.000Z"
   }
 }
@@ -203,6 +204,18 @@ Content-Type: application/json
 }
 ```
 
+The enable response returns one-time recovery codes. Show them once and ask the student to store them somewhere safe:
+
+```json
+{
+  "data": {
+    "enabled": true,
+    "recoveryCodes": ["A1B2C-D3E4F", "8A9B0-C1D2E"],
+    "recoveryCodeCount": 8
+  }
+}
+```
+
 When login returns `requiresTwoFactor`, complete login with:
 
 ```http
@@ -214,6 +227,20 @@ Content-Type: application/json
   "code": "123456"
 }
 ```
+
+If the user loses their authenticator app, they can send one unused recovery code instead:
+
+```http
+POST /auth/2fa/verify
+Content-Type: application/json
+
+{
+  "challengeId": "2fa_abc123",
+  "recoveryCode": "A1B2C-D3E4F"
+}
+```
+
+Invalid 2FA attempts reduce `attemptsRemaining`; after 5 bad attempts, the challenge is removed and the user must start login again. Regenerate recovery codes with `POST /auth/2fa/recovery-codes/regenerate` while authenticated, using the password plus a current authenticator code. Regeneration invalidates all old recovery codes.
 
 ### KYC
 
