@@ -222,6 +222,8 @@ Content-Type: application/json
 
 The backend runs a free classroom market simulator. Asset prices move automatically every few seconds, and all wallet values, trade quotes, market lists, and admin asset screens read from the same changing prices.
 
+Supported asset logos are served by this backend at `/assets/:symbol.svg`, for example `/assets/btc.svg`. The seeded `iconUrl` fields already point to those backend-hosted SVG files so every student app uses the same visuals. The bundled SVGs are sourced from [CryptoLogos](https://cryptologos.cc/).
+
 Students can poll this endpoint from the mobile app:
 
 ```http

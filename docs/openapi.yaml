@@ -39,6 +39,26 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/HealthResponse"
+  /assets/{fileName}:
+    get:
+      tags: [System]
+      security: []
+      summary: Get a backend-hosted crypto logo SVG
+      parameters:
+        - in: path
+          name: fileName
+          required: true
+          schema:
+            type: string
+          example: btc.svg
+      responses:
+        "200":
+          description: SVG logo file
+          content:
+            image/svg+xml:
+              schema:
+                type: string
+                format: binary
   /auth/register:
     post:
       tags: [Auth]

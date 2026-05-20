@@ -61,6 +61,7 @@ export function createApp() {
 </html>`);
   });
 
+  app.use("/assets", express.static(path.join(process.cwd(), "public", "assets")));
   app.use("/admin-ui", express.static(path.join(process.cwd(), "public", "admin")));
   app.get("/admin-ui", (req, res) => {
     res.redirect("/admin-ui/");

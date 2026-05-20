@@ -105,6 +105,7 @@ async function main() {
     });
 
     await request("/market/assets");
+    await requestText("/assets/btc.svg");
     await request("/market/assets?page=1&limit=5&search=bit&sort=priceUsd&order=desc");
     await request("/market/prices");
     await request("/market/trending");
