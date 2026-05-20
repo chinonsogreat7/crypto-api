@@ -30,13 +30,21 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function expectBadRequest(path: string, options: RequestInit, label: string) {
+  const response = await fetch(`${baseUrl}${path}`, options);
+  if (response.status !== 400) {
+    const body = await response.text();
+    throw new Error(`${label} expected 400 but got ${response.status}: ${body}`);
+  }
+}
+
 async function main() {
   await bootstrapDatabase();
   const server = createApp().listen(port, host);
 
   try {
     await request("/health");
-    await request("/auth/register", {
+    await expectBadRequest("/auth/register", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -45,12 +53,7 @@ async function main() {
         phone: "string",
         password: "password123"
       })
-    }).then(
-      () => {
-        throw new Error("Invalid phone registration unexpectedly succeeded.");
-      },
-      () => undefined
-    );
+    }, "invalid registration phone");
     const newUserBody = await request("/auth/register", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -106,7 +109,17 @@ async function main() {
     await request("/market/prices");
     await request("/market/trending");
     await request("/me", { headers: userHeaders });
+    await expectBadRequest("/me", {
+      method: "PATCH",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ phone: "string" })
+    }, "invalid profile phone");
     await request("/me/settings", { headers: userHeaders });
+    await expectBadRequest("/me/settings", {
+      method: "PATCH",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ pushNotifications: "yes" })
+    }, "invalid settings boolean");
     await request("/me/devices", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
@@ -115,7 +128,21 @@ async function main() {
         platform: "ios"
       })
     });
+    await expectBadRequest("/me/devices", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ expoPushToken: "not-a-token", platform: "ios" })
+    }, "invalid push token");
     await request("/me/watchlist", { headers: userHeaders });
+    await expectBadRequest("/me/watchlist/not-a-symbol", {
+      method: "POST",
+      headers: userHeaders
+    }, "invalid watchlist symbol");
+    await expectBadRequest("/me/price-alerts", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ assetSymbol: "BTC", direction: "sideways", targetPriceUsd: "72000" })
+    }, "invalid price alert");
     const alertBody = await request("/me/price-alerts", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
@@ -153,6 +180,16 @@ async function main() {
     await requestText("/admin-ui/");
     await request("/admin/dashboard", { headers: adminHeaders });
     await request("/admin/fees", { headers: adminHeaders });
+    await expectBadRequest("/admin/fees", {
+      method: "PATCH",
+      headers: { ...adminHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ buyFeePercent: "1" })
+    }, "invalid fee type");
+    await expectBadRequest("/admin/assets", {
+      method: "POST",
+      headers: { ...adminHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ symbol: "bad symbol", name: "", network: "Ethereum", priceUsd: "100" })
+    }, "invalid admin asset");
 
     await request("/admin/assets/BTC", {
       method: "PATCH",
@@ -172,6 +209,17 @@ async function main() {
       body: JSON.stringify({ status: "approved", reviewerNote: "Approved for classroom demo." })
     });
 
+    await expectBadRequest("/wallet/deposit/simulate", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ amount: "500" })
+    }, "invalid deposit amount");
+    await expectBadRequest("/wallet/withdrawals", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ assetSymbol: "ETH", amount: "0.05", address: "bad", network: "Ethereum Sepolia" })
+    }, "invalid withdrawal");
+
     const depositBody = await request("/wallet/deposit/simulate", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
@@ -181,6 +229,11 @@ async function main() {
     await wait(1200);
     await request(depositBody.data.pollingUrl, { headers: userHeaders });
 
+    await expectBadRequest("/trade/quotes", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ type: "buy", fromAsset: "USD", toAsset: "USDC", fromAmount: "50" })
+    }, "invalid quote amount");
     const quoteBody = await request("/trade/quotes", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },

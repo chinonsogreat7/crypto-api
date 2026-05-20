@@ -6,6 +6,7 @@ import { generateTotpSecret, otpauthUri, verifyTotpCode } from "../services/totp
 import type { KycSubmission, User } from "../models";
 import { badRequest, created, ok } from "../utils/http";
 import {
+  isEnumValue,
   isEmail,
   isHttpUrlOrStoragePath,
   isNonEmptyString,
@@ -327,7 +328,7 @@ authRouter.post("/kyc", (req: Request<unknown, unknown, KycBody>, res) => {
     return badRequest(res, "legalName, country, and documentNumber must be valid text values.", "INVALID_KYC_DETAILS");
   }
 
-  if (!["national_id", "passport", "drivers_license"].includes(documentType)) {
+  if (!isEnumValue(documentType, ["national_id", "passport", "drivers_license"] as const)) {
     return badRequest(res, "documentType must be national_id, passport, or drivers_license.", "INVALID_DOCUMENT_TYPE");
   }
 

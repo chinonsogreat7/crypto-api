@@ -485,9 +485,13 @@ paths:
               properties:
                 fullName:
                   type: string
+                  minLength: 2
+                  maxLength: 80
                   example: Ada Student
                 phone:
                   type: string
+                  pattern: '^\+[1-9]\d{7,14}$'
+                  description: International phone number in E.164 format.
                   example: "+2348010000001"
                 avatarUrl:
                   type: string

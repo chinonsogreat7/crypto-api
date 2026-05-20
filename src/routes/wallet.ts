@@ -6,6 +6,7 @@ import { notifyUser } from "../services/notifications";
 import type { AssetSymbol, WithdrawalRequest } from "../models";
 import { badRequest, created, notFound, ok } from "../utils/http";
 import { paginate, sortDirection } from "../utils/pagination";
+import { isAssetSymbol, isBlockchainAddress, isNonEmptyString, isPositiveNumber } from "../utils/validation";
 
 export const walletRouter = express.Router();
 
@@ -14,7 +15,8 @@ walletRouter.use(requireAuth);
 const DEFAULT_DEPOSIT_SETTLEMENT_SECONDS = Number(process.env.DEPOSIT_SETTLEMENT_SECONDS || 5);
 
 function depositSettlementSeconds(value: unknown): number {
-  const seconds = value === undefined ? DEFAULT_DEPOSIT_SETTLEMENT_SECONDS : Number(value);
+  const seconds = value === undefined ? DEFAULT_DEPOSIT_SETTLEMENT_SECONDS : value;
+  if (typeof seconds !== "number") return DEFAULT_DEPOSIT_SETTLEMENT_SECONDS;
   if (!Number.isFinite(seconds)) return DEFAULT_DEPOSIT_SETTLEMENT_SECONDS;
   return Math.max(0, Math.min(60, seconds));
 }
@@ -126,9 +128,13 @@ walletRouter.get("/transactions/:transactionId", (req, res) => {
 });
 
 walletRouter.post("/deposit/simulate", (req: Request<unknown, unknown, { amount?: number; settlementDelaySeconds?: number }>, res) => {
-  const amount = Number(req.body.amount);
-  if (!Number.isFinite(amount) || amount <= 0) {
+  const amount = req.body.amount;
+  if (!isPositiveNumber(amount, 1_000_000)) {
     return badRequest(res, "amount must be greater than zero.");
+  }
+
+  if (req.body.settlementDelaySeconds !== undefined && !isPositiveNumber(req.body.settlementDelaySeconds, 60)) {
+    return badRequest(res, "settlementDelaySeconds must be a number between 1 and 60.", "INVALID_SETTLEMENT_DELAY");
   }
 
   const wallet = getWallet(req.user.id);
@@ -164,9 +170,9 @@ walletRouter.post("/deposit/simulate", (req: Request<unknown, unknown, { amount?
 
 walletRouter.post("/withdrawals", (req: Request<unknown, unknown, { assetSymbol?: AssetSymbol; amount?: number; address?: string; network?: string }>, res) => {
   const { assetSymbol, address, network } = req.body;
-  const amount = Number(req.body.amount);
+  const amount = req.body.amount;
 
-  if (!assetSymbol || !address || !network || !Number.isFinite(amount) || amount <= 0) {
+  if (!isAssetSymbol(assetSymbol) || !isPositiveNumber(amount, 1_000_000) || !isBlockchainAddress(address) || !isNonEmptyString(network, 2, 60)) {
     return badRequest(res, "assetSymbol, amount, address, and network are required.");
   }
 

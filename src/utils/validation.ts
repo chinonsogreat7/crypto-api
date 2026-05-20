@@ -28,6 +28,32 @@ export function isPin(value: unknown): value is string {
   return typeof value === "string" && /^[0-9]{4,6}$/.test(value);
 }
 
+export function isBoolean(value: unknown): value is boolean {
+  return typeof value === "boolean";
+}
+
+export function isPositiveNumber(value: unknown, max = Number.MAX_SAFE_INTEGER): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 && value <= max;
+}
+
+export function isNonNegativeNumber(value: unknown, max = Number.MAX_SAFE_INTEGER): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= max;
+}
+
+export function isEnumValue<T extends readonly string[]>(value: unknown, allowed: T): value is T[number] {
+  return typeof value === "string" && allowed.includes(value);
+}
+
+export function isAssetSymbol(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Z0-9]{2,10}$/.test(value);
+}
+
+export function isBlockchainAddress(value: unknown): value is string {
+  if (!isNonEmptyString(value, 8, 120)) return false;
+  const trimmed = value.trim();
+  return /^(0x[a-fA-F0-9]{20,64}|[A-Za-z0-9:_-]{8,120})$/.test(trimmed);
+}
+
 export function isHttpUrlOrStoragePath(value: unknown): value is string {
   if (!isNonEmptyString(value, 1, 500)) return false;
   const trimmed = value.trim();

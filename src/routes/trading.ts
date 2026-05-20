@@ -12,6 +12,7 @@ import { requireAuth } from "../middleware/auth";
 import { notifyUser } from "../services/notifications";
 import type { AssetSymbol, FiatCurrency, Quote, Transaction } from "../models";
 import { badRequest, created, notFound, ok } from "../utils/http";
+import { isEnumValue, isPin, isPositiveNumber } from "../utils/validation";
 
 export const tradingRouter = express.Router();
 
@@ -48,9 +49,9 @@ function quoteResponse(quote: Quote) {
 
 tradingRouter.post("/quotes", (req: Request<unknown, unknown, QuoteBody>, res) => {
   const { type, fromAsset, toAsset } = req.body;
-  const fromAmount = Number(req.body.fromAmount);
+  const fromAmount = req.body.fromAmount;
 
-  if (!type || !fromAsset || !toAsset || !Number.isFinite(fromAmount) || fromAmount <= 0) {
+  if (!isEnumValue(type, ["buy", "sell", "swap"] as const) || !fromAsset || !toAsset || !isPositiveNumber(fromAmount, 1_000_000)) {
     return badRequest(res, "type, fromAsset, toAsset, and fromAmount are required.");
   }
 
@@ -97,7 +98,7 @@ tradingRouter.post("/execute", async (req: Request<unknown, unknown, ExecuteBody
     return badRequest(res, "quoteId and pin are required.");
   }
 
-  if (pin !== req.user.pin) {
+  if (!isPin(pin) || pin !== req.user.pin) {
     return badRequest(res, "Invalid transaction PIN.", "INVALID_PIN");
   }
 

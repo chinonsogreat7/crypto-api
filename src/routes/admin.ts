@@ -5,6 +5,7 @@ import { requireAdmin, requireAuth } from "../middleware/auth";
 import { notifyUser } from "../services/notifications";
 import type { Asset, KycStatus } from "../models";
 import { badRequest, created, notFound, ok } from "../utils/http";
+import { isAssetSymbol, isBoolean, isEnumValue, isHttpUrlOrStoragePath, isNonEmptyString, isNonNegativeNumber, isPositiveNumber } from "../utils/validation";
 
 export const adminRouter = express.Router();
 
@@ -63,8 +64,12 @@ adminRouter.get("/kyc", (req, res) => {
 
 adminRouter.patch("/kyc/:kycId", async (req: Request<{ kycId: string }, unknown, { status?: KycStatus; reviewerNote?: string }>, res) => {
   const { status, reviewerNote } = req.body;
-  if (!status || !["approved", "rejected"].includes(status)) {
+  if (!isEnumValue(status, ["approved", "rejected"] as const)) {
     return badRequest(res, "status must be approved or rejected.");
+  }
+
+  if (reviewerNote !== undefined && reviewerNote !== null && !isNonEmptyString(reviewerNote, 1, 240)) {
+    return badRequest(res, "reviewerNote must be 1 to 240 characters when provided.", "INVALID_REVIEWER_NOTE");
   }
 
   const submission = db.kycSubmissions.find((item) => item.id === req.params.kycId);
@@ -100,8 +105,12 @@ adminRouter.get("/withdrawals", (req, res) => {
 
 adminRouter.patch("/withdrawals/:withdrawalId", async (req: Request<{ withdrawalId: string }, unknown, { status?: "approved" | "rejected"; reviewerNote?: string }>, res) => {
   const { status, reviewerNote } = req.body;
-  if (!status || !["approved", "rejected"].includes(status)) {
+  if (!isEnumValue(status, ["approved", "rejected"] as const)) {
     return badRequest(res, "status must be approved or rejected.");
+  }
+
+  if (reviewerNote !== undefined && reviewerNote !== null && !isNonEmptyString(reviewerNote, 1, 240)) {
+    return badRequest(res, "reviewerNote must be 1 to 240 characters when provided.", "INVALID_REVIEWER_NOTE");
   }
 
   const withdrawal = db.withdrawalRequests.find((item) => item.id === req.params.withdrawalId);
@@ -145,15 +154,45 @@ adminRouter.get("/assets", (req, res) => {
 
 adminRouter.post("/assets", (req: Request<unknown, unknown, Omit<Asset, "id">>, res) => {
   const { symbol, name, network, priceUsd, change24h, isActive, minBuyUsd, minSellUsd, iconUrl } = req.body;
-  if (!symbol || !name || !network || !Number.isFinite(priceUsd)) {
+  if (!isAssetSymbol(symbol) || !isNonEmptyString(name, 2, 80) || !isNonEmptyString(network, 2, 80) || !isPositiveNumber(priceUsd, 10_000_000)) {
     return badRequest(res, "symbol, name, network, and priceUsd are required.");
+  }
+
+  if (change24h !== undefined && (typeof change24h !== "number" || !Number.isFinite(change24h) || Math.abs(change24h) > 100)) {
+    return badRequest(res, "change24h must be a number between -100 and 100.", "INVALID_CHANGE_24H");
+  }
+
+  if (isActive !== undefined && !isBoolean(isActive)) {
+    return badRequest(res, "isActive must be true or false.", "INVALID_ACTIVE_STATE");
+  }
+
+  if (minBuyUsd !== undefined && !isPositiveNumber(minBuyUsd, 1_000_000)) {
+    return badRequest(res, "minBuyUsd must be greater than zero.", "INVALID_MIN_BUY");
+  }
+
+  if (minSellUsd !== undefined && !isPositiveNumber(minSellUsd, 1_000_000)) {
+    return badRequest(res, "minSellUsd must be greater than zero.", "INVALID_MIN_SELL");
+  }
+
+  if (iconUrl !== undefined) {
+    if (typeof iconUrl !== "string") {
+      return badRequest(res, "iconUrl must be an http(s) URL, storage path, or /assets path.", "INVALID_ICON_URL");
+    }
+
+    if (!iconUrl.startsWith("/assets/") && !isHttpUrlOrStoragePath(iconUrl)) {
+      return badRequest(res, "iconUrl must be an http(s) URL, storage path, or /assets path.", "INVALID_ICON_URL");
+    }
+  }
+
+  if (db.assets.some((asset) => asset.symbol === symbol)) {
+    return badRequest(res, "An asset with this symbol already exists.", "ASSET_EXISTS");
   }
 
   const asset: Asset = {
     id: createId("asset"),
     symbol,
-    name,
-    network,
+    name: name.trim(),
+    network: network.trim(),
     priceUsd,
     change24h: change24h || 0,
     isActive: isActive ?? true,
@@ -186,11 +225,20 @@ adminRouter.get("/fees", (req, res) => {
 
 adminRouter.patch("/fees", (req, res) => {
   const allowed = ["buyFeePercent", "sellFeePercent", "swapFeePercent", "withdrawalFlatUsd", "spreadPercent"] as const;
+  let updated = false;
   for (const key of allowed) {
     const value = req.body[key];
-    if (value !== undefined && Number.isFinite(Number(value)) && Number(value) >= 0) {
-      db.feeSettings[key] = Number(value);
+    if (value !== undefined) {
+      if (!isNonNegativeNumber(value, 25)) {
+        return badRequest(res, `${key} must be a number between 0 and 25.`, "INVALID_FEE_SETTING");
+      }
+      db.feeSettings[key] = value;
+      updated = true;
     }
+  }
+
+  if (!updated) {
+    return badRequest(res, "At least one fee setting is required.", "NO_FEE_SETTING");
   }
 
   return ok(res, clone(db.feeSettings));

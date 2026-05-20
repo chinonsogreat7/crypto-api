@@ -340,7 +340,7 @@ This teaches why financial operations often need a back-office workflow.
 
 ## Profile, Settings, And Notifications
 
-Use `GET /me` for profile data and `PATCH /me` for editable profile fields.
+Use `GET /me` for profile data and `PATCH /me` for editable profile fields. Profile updates use the same validation rules as registration: names must be 2-80 characters, phone numbers must use international format such as `+2348010000001`, and avatar URLs must be http(s) URLs or API storage paths.
 
 Use `GET /me/settings` and `PATCH /me/settings` for language, fiat currency, theme, push notification, price alert, and biometric preferences.
 
@@ -356,6 +356,21 @@ The API now includes common mobile data fetching patterns:
 - `GET /trade/quotes/:quoteId`
 
 These endpoints help students practice search inputs, filters, infinite scroll, chart ranges, countdown timers, and refetching expired quote data.
+
+## Validation Rules
+
+Mutation endpoints validate request bodies consistently:
+
+- strings must be meaningful and within route-specific length limits
+- email and phone fields must use valid formats
+- numeric fields must be JSON numbers, not strings like `"500"`
+- booleans must be real booleans, not `"true"` or `"false"` strings
+- enum fields must match the documented values
+- asset symbols must use uppercase ticker-like values such as `BTC`
+- withdrawal addresses must look like blockchain addresses
+- image and avatar URLs must be http(s) URLs or demo `/storage/files/...` paths
+
+Validation errors use the normal error wrapper with a clear `code` and `message`, so mobile screens can show field errors and keep invalid submissions out of the app state.
 
 ## Price Alerts
 

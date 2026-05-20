@@ -1,4 +1,5 @@
 import { createId } from "../data/store";
+import { isEnumValue, isNonEmptyString } from "../utils/validation";
 
 const SAFE_FILE_NAME = /[^a-zA-Z0-9._-]/g;
 
@@ -13,7 +14,11 @@ export function createKycUpload(userId: string, body: KycUploadRequest) {
   const contentType = body.contentType?.trim();
   const documentKind = body.documentKind || "document_front";
 
-  if (!fileName || !contentType) {
+  if (!fileName || !contentType || !isNonEmptyString(fileName, 3, 120) || !/^[-\w.]+\/[-+\w.]+$/.test(contentType)) {
+    return null;
+  }
+
+  if (!isEnumValue(documentKind, ["selfie", "document_front", "document_back"] as const)) {
     return null;
   }
 

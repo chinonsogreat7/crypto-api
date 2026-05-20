@@ -5,6 +5,17 @@ import { isExpoPushToken, registerDeviceToken } from "../services/notifications"
 import { evaluatePriceAlerts } from "../services/price-alerts";
 import type { AssetSymbol, DeviceToken, PriceAlert, PublicUser, UserSettings } from "../models";
 import { badRequest, created, notFound, ok } from "../utils/http";
+import {
+  isAssetSymbol,
+  isBoolean,
+  isEnumValue,
+  isHttpUrlOrStoragePath,
+  isNonEmptyString,
+  isPhoneNumber,
+  isPin,
+  isPositiveNumber,
+  normalizePhone
+} from "../utils/validation";
 
 export const meRouter = express.Router();
 
@@ -20,9 +31,33 @@ meRouter.get("/", (req, res) => {
 });
 
 meRouter.patch("/", (req: Request<unknown, unknown, ProfileBody>, res) => {
-  if (req.body.fullName !== undefined) req.user.fullName = req.body.fullName;
-  if (req.body.phone !== undefined) req.user.phone = req.body.phone;
-  if (req.body.avatarUrl !== undefined) req.user.avatarUrl = req.body.avatarUrl;
+  if (req.body.fullName !== undefined) {
+    if (!isNonEmptyString(req.body.fullName, 2, 80)) {
+      return badRequest(res, "fullName must be between 2 and 80 characters.", "INVALID_FULL_NAME");
+    }
+    req.user.fullName = req.body.fullName.trim();
+  }
+
+  if (req.body.phone !== undefined) {
+    if (!isPhoneNumber(req.body.phone)) {
+      return badRequest(res, "phone must be a valid international phone number, for example +2348010000001.", "INVALID_PHONE");
+    }
+
+    const normalizedPhone = normalizePhone(req.body.phone);
+    const phoneOwner = db.users.find((user) => user.phone === normalizedPhone && user.id !== req.user.id);
+    if (phoneOwner) {
+      return badRequest(res, "A user with this phone number already exists.", "PHONE_EXISTS");
+    }
+
+    req.user.phone = normalizedPhone;
+  }
+
+  if (req.body.avatarUrl !== undefined) {
+    if (req.body.avatarUrl !== null && !isHttpUrlOrStoragePath(req.body.avatarUrl)) {
+      return badRequest(res, "avatarUrl must be a valid http(s) URL or storage path.", "INVALID_AVATAR_URL");
+    }
+    req.user.avatarUrl = req.body.avatarUrl;
+  }
 
   return ok(res, publicUser(req.user));
 });
@@ -34,11 +69,34 @@ meRouter.get("/settings", (req, res) => {
 meRouter.patch("/settings", (req: Request<unknown, unknown, SettingsBody>, res) => {
   const nextSettings = { ...req.user.settings };
 
-  if (req.body.theme !== undefined) nextSettings.theme = req.body.theme;
-  if (req.body.priceAlerts !== undefined) nextSettings.priceAlerts = req.body.priceAlerts;
-  if (req.body.pushNotifications !== undefined) nextSettings.pushNotifications = req.body.pushNotifications;
-  if (req.body.biometricEnabled !== undefined) nextSettings.biometricEnabled = req.body.biometricEnabled;
-  if (req.body.fiatCurrency !== undefined) nextSettings.fiatCurrency = req.body.fiatCurrency;
+  if (req.body.theme !== undefined) {
+    if (!isEnumValue(req.body.theme, ["system", "light", "dark"] as const)) {
+      return badRequest(res, "theme must be system, light, or dark.", "INVALID_THEME");
+    }
+    nextSettings.theme = req.body.theme;
+  }
+
+  if (req.body.priceAlerts !== undefined) {
+    if (!isBoolean(req.body.priceAlerts)) return badRequest(res, "priceAlerts must be true or false.", "INVALID_PRICE_ALERTS_SETTING");
+    nextSettings.priceAlerts = req.body.priceAlerts;
+  }
+
+  if (req.body.pushNotifications !== undefined) {
+    if (!isBoolean(req.body.pushNotifications)) return badRequest(res, "pushNotifications must be true or false.", "INVALID_PUSH_SETTING");
+    nextSettings.pushNotifications = req.body.pushNotifications;
+  }
+
+  if (req.body.biometricEnabled !== undefined) {
+    if (!isBoolean(req.body.biometricEnabled)) return badRequest(res, "biometricEnabled must be true or false.", "INVALID_BIOMETRIC_SETTING");
+    nextSettings.biometricEnabled = req.body.biometricEnabled;
+  }
+
+  if (req.body.fiatCurrency !== undefined) {
+    if (!isEnumValue(req.body.fiatCurrency, ["USD", "NGN"] as const)) {
+      return badRequest(res, "fiatCurrency must be USD or NGN.", "INVALID_FIAT_CURRENCY");
+    }
+    nextSettings.fiatCurrency = req.body.fiatCurrency;
+  }
 
   req.user.settings = nextSettings;
   return ok(res, clone(req.user.settings));
@@ -54,7 +112,7 @@ meRouter.patch("/pin", (req: Request<unknown, unknown, { currentPin?: string; ne
     return badRequest(res, "Current PIN is incorrect.", "INVALID_PIN");
   }
 
-  if (!/^[0-9]{4,6}$/.test(newPin)) {
+  if (!isPin(newPin)) {
     return badRequest(res, "newPin must be 4 to 6 digits.", "INVALID_NEW_PIN");
   }
 
@@ -69,7 +127,7 @@ meRouter.post("/devices", (req: Request<unknown, unknown, Partial<DeviceBody>>, 
     return badRequest(res, "expoPushToken must be a valid Expo push token.", "INVALID_EXPO_PUSH_TOKEN");
   }
 
-  if (!platform || !["ios", "android", "web"].includes(platform)) {
+  if (!platform || !isEnumValue(platform, ["ios", "android", "web"] as const)) {
     return badRequest(res, "platform must be ios, android, or web.");
   }
 
@@ -88,6 +146,10 @@ meRouter.get("/watchlist", (req, res) => {
 });
 
 meRouter.post("/watchlist/:symbol", (req: Request<{ symbol: AssetSymbol }>, res) => {
+  if (!isAssetSymbol(req.params.symbol)) {
+    return badRequest(res, "symbol must be a valid asset symbol.", "INVALID_ASSET_SYMBOL");
+  }
+
   const asset = db.assets.find((item) => item.symbol === req.params.symbol);
   if (!asset) {
     return notFound(res, "Asset was not found.", "ASSET_NOT_FOUND");
@@ -101,6 +163,10 @@ meRouter.post("/watchlist/:symbol", (req: Request<{ symbol: AssetSymbol }>, res)
 });
 
 meRouter.delete("/watchlist/:symbol", (req: Request<{ symbol: AssetSymbol }>, res) => {
+  if (!isAssetSymbol(req.params.symbol)) {
+    return badRequest(res, "symbol must be a valid asset symbol.", "INVALID_ASSET_SYMBOL");
+  }
+
   req.user.watchlist = req.user.watchlist.filter((symbol) => symbol !== req.params.symbol);
   return ok(res, clone(req.user.watchlist));
 });
@@ -121,8 +187,8 @@ meRouter.get("/price-alerts", (req, res) => {
 
 meRouter.post("/price-alerts", async (req: Request<unknown, unknown, PriceAlertBody>, res) => {
   const { assetSymbol, direction } = req.body;
-  const targetPriceUsd = Number(req.body.targetPriceUsd);
-  if (!assetSymbol || !direction || !["above", "below"].includes(direction) || !Number.isFinite(targetPriceUsd) || targetPriceUsd <= 0) {
+  const targetPriceUsd = req.body.targetPriceUsd;
+  if (!isAssetSymbol(assetSymbol) || !isEnumValue(direction, ["above", "below"] as const) || !isPositiveNumber(targetPriceUsd, 10_000_000)) {
     return badRequest(res, "assetSymbol, direction, and targetPriceUsd are required.");
   }
 
@@ -153,15 +219,15 @@ meRouter.patch("/price-alerts/:alertId", async (req: Request<{ alertId: string }
   }
 
   if (req.body.direction !== undefined) {
-    if (!["above", "below"].includes(req.body.direction)) {
+    if (!isEnumValue(req.body.direction, ["above", "below"] as const)) {
       return badRequest(res, "direction must be above or below.");
     }
     alert.direction = req.body.direction;
   }
 
   if (req.body.targetPriceUsd !== undefined) {
-    const targetPriceUsd = Number(req.body.targetPriceUsd);
-    if (!Number.isFinite(targetPriceUsd) || targetPriceUsd <= 0) {
+    const targetPriceUsd = req.body.targetPriceUsd;
+    if (!isPositiveNumber(targetPriceUsd, 10_000_000)) {
       return badRequest(res, "targetPriceUsd must be greater than zero.");
     }
     alert.targetPriceUsd = targetPriceUsd;
@@ -169,7 +235,10 @@ meRouter.patch("/price-alerts/:alertId", async (req: Request<{ alertId: string }
   }
 
   if (req.body.isActive !== undefined) {
-    alert.isActive = Boolean(req.body.isActive);
+    if (!isBoolean(req.body.isActive)) {
+      return badRequest(res, "isActive must be true or false.", "INVALID_ACTIVE_STATE");
+    }
+    alert.isActive = req.body.isActive;
     if (alert.isActive) alert.triggeredAt = null;
   }
 
