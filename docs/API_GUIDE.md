@@ -124,12 +124,13 @@ POST /auth/login
 Content-Type: application/json
 
 {
+  "loginType": "email",
   "identifier": "student@cryptoclass.test",
   "password": "password123"
 }
 ```
 
-`identifier` can be an email address or phone number. The older `email` field still works for backward compatibility.
+Use `loginType: "email"` when `identifier` is an email address, or `loginType: "phone"` when `identifier` is a phone number. The older `email` field still works for backward compatibility, but new apps should use `loginType` and `identifier`.
 
 If optional authenticator 2FA is enabled, login returns a challenge instead of a token:
 

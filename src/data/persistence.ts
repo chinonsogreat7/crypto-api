@@ -10,7 +10,7 @@ import type {
 } from "../models";
 import { initialData } from "./initial-data";
 import { prisma } from "./prisma";
-import { db, replaceDatabase } from "./store";
+import { clone, db, replaceDatabase } from "./store";
 
 function toDate(value: string | null): Date | null {
   return value ? new Date(value) : null;
@@ -196,8 +196,27 @@ export async function loadDatabase(): Promise<Database> {
   };
 }
 
+let pendingSave: Database | null = null;
+let saveDrain: Promise<void> | null = null;
+
 export async function saveCurrentDatabase(): Promise<void> {
-  await saveDatabase(db);
+  pendingSave = clone(db);
+
+  if (!saveDrain) {
+    saveDrain = drainPendingSaves().finally(() => {
+      saveDrain = null;
+    });
+  }
+
+  await saveDrain;
+}
+
+async function drainPendingSaves(): Promise<void> {
+  while (pendingSave) {
+    const snapshot = pendingSave;
+    pendingSave = null;
+    await saveDatabase(snapshot);
+  }
 }
 
 export async function saveDatabase(data: Database): Promise<void> {
@@ -334,5 +353,5 @@ export async function saveDatabase(data: Database): Promise<void> {
         ...data.feeSettings
       }
     });
-  });
+  }, { timeout: 15000 });
 }

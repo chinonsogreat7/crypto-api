@@ -8,6 +8,7 @@ import { badRequest, created, ok } from "../utils/http";
 export const authRouter = express.Router();
 
 interface LoginBody {
+  loginType?: "email" | "phone";
   identifier?: string;
   email?: string;
   password?: string;
@@ -39,10 +40,14 @@ interface KycBody {
   documentImageUrl?: string;
 }
 
-function findUserByIdentifier(identifier: string): User | undefined {
+function findUserByLogin(loginType: "email" | "phone", identifier: string): User | undefined {
   const trimmed = identifier.trim();
-  const normalized = trimmed.toLowerCase();
-  return db.users.find((item) => item.email.toLowerCase() === normalized || item.phone === trimmed);
+  if (loginType === "email") {
+    const normalized = trimmed.toLowerCase();
+    return db.users.find((item) => item.email.toLowerCase() === normalized);
+  }
+
+  return db.users.find((item) => item.phone === trimmed);
 }
 
 function sessionFor(user: User) {
@@ -125,17 +130,22 @@ authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res)
 
 authRouter.post("/login", (req: Request<unknown, unknown, LoginBody>, res) => {
   const identifier = req.body.identifier || req.body.email;
+  const loginType = req.body.loginType || (req.body.email ? "email" : undefined);
   const { password } = req.body;
+  if (!loginType || !["email", "phone"].includes(loginType)) {
+    return badRequest(res, "loginType must be email or phone.", "INVALID_LOGIN_TYPE");
+  }
+
   if (!identifier || !password) {
     return badRequest(res, "identifier and password are required.");
   }
 
-  const user = findUserByIdentifier(identifier);
+  const user = findUserByLogin(loginType, identifier);
   if (!user || user.password !== password) {
     return res.status(401).json({
       error: {
         code: "INVALID_CREDENTIALS",
-        message: "Email or password is incorrect."
+        message: "Login details or password is incorrect."
       }
     });
   }

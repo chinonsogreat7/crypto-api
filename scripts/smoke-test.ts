@@ -35,7 +35,7 @@ async function main() {
     await request("/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ identifier: "+2348010000001", password: "password123" })
+      body: JSON.stringify({ loginType: "phone", identifier: "+2348010000001", password: "password123" })
     });
 
     const setupBody = await request("/auth/2fa/setup", {
@@ -53,7 +53,7 @@ async function main() {
     const challengeBody = await request("/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ identifier: "student@cryptoclass.test", password: "password123" })
+      body: JSON.stringify({ loginType: "email", identifier: "student@cryptoclass.test", password: "password123" })
     });
 
     await request("/auth/2fa/verify", {

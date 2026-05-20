@@ -10,9 +10,25 @@ servers:
     description: Local development
 security:
   - bearerAuth: []
+tags:
+  - name: System
+    description: Health checks and service metadata.
+  - name: Auth
+    description: Registration, login, OTP, authenticator 2FA, and KYC submission.
+  - name: Market
+    description: Asset catalog, trending assets, and simulated live market prices.
+  - name: Profile
+    description: Customer profile, settings, watchlist, devices, and notifications.
+  - name: Wallet
+    description: Wallet balances, deposits, withdrawals, and transaction history.
+  - name: Trade
+    description: Quote preview and trade execution for buy, sell, and swap flows.
+  - name: Admin
+    description: Admin dashboard, users, KYC review, withdrawals, assets, and fees.
 paths:
   /health:
     get:
+      tags: [System]
       security: []
       summary: Check server health
       responses:
@@ -25,6 +41,7 @@ paths:
                   $ref: "#/components/examples/HealthResponse"
   /auth/register:
     post:
+      tags: [Auth]
       security: []
       summary: Register a customer
       requestBody:
@@ -54,6 +71,7 @@ paths:
                   $ref: "#/components/examples/AuthResponse"
   /auth/login:
     post:
+      tags: [Auth]
       security: []
       summary: Log in
       requestBody:
@@ -62,14 +80,16 @@ paths:
           application/json:
             schema:
               type: object
-              required: [identifier, password]
+              required: [loginType, identifier, password]
               properties:
+                loginType:
+                  type: string
+                  enum: [email, phone]
+                  description: Tells the API whether identifier should be matched against email or phone.
+                  example: email
                 identifier:
                   type: string
-                  example: student@cryptoclass.test
-                email:
-                  type: string
-                  description: Backward-compatible alias for identifier
+                  description: Email address when loginType is email, or phone number when loginType is phone.
                   example: student@cryptoclass.test
                 password:
                   type: string
@@ -86,6 +106,7 @@ paths:
                   $ref: "#/components/examples/TwoFactorChallengeResponse"
   /auth/2fa/setup:
     post:
+      tags: [Auth]
       summary: Start authenticator app setup
       responses:
         "200":
@@ -97,6 +118,7 @@ paths:
                   $ref: "#/components/examples/TwoFactorSetupResponse"
   /auth/2fa/enable:
     post:
+      tags: [Auth]
       summary: Enable authenticator app 2FA
       requestBody:
         required: true
@@ -119,6 +141,7 @@ paths:
                   $ref: "#/components/examples/TwoFactorEnabledResponse"
   /auth/2fa/verify:
     post:
+      tags: [Auth]
       security: []
       summary: Verify a login 2FA challenge
       requestBody:
@@ -145,6 +168,7 @@ paths:
                   $ref: "#/components/examples/AuthResponse"
   /auth/2fa/disable:
     post:
+      tags: [Auth]
       summary: Disable authenticator app 2FA
       requestBody:
         required: true
@@ -170,6 +194,7 @@ paths:
                   $ref: "#/components/examples/TwoFactorDisabledResponse"
   /auth/otp/request:
     post:
+      tags: [Auth]
       security: []
       summary: Request demo OTP
       requestBody:
@@ -194,6 +219,7 @@ paths:
                   $ref: "#/components/examples/OtpRequestResponse"
   /auth/otp/verify:
     post:
+      tags: [Auth]
       security: []
       summary: Verify demo OTP
       requestBody:
@@ -221,6 +247,7 @@ paths:
                   $ref: "#/components/examples/OtpVerifyResponse"
   /auth/kyc:
     post:
+      tags: [Auth]
       summary: Submit KYC for review
       requestBody:
         required: true
@@ -259,6 +286,7 @@ paths:
                   $ref: "#/components/examples/KycResponse"
   /market/assets:
     get:
+      tags: [Market]
       security: []
       summary: List supported crypto assets
       parameters:
@@ -279,6 +307,7 @@ paths:
                   $ref: "#/components/examples/AssetListResponse"
   /market/assets/{symbol}:
     get:
+      tags: [Market]
       security: []
       summary: Get asset details and demo chart data
       parameters:
@@ -293,6 +322,7 @@ paths:
                   $ref: "#/components/examples/AssetDetailResponse"
   /market/trending:
     get:
+      tags: [Market]
       security: []
       summary: List trending assets
       responses:
@@ -305,6 +335,7 @@ paths:
                   $ref: "#/components/examples/AssetListResponse"
   /market/prices:
     get:
+      tags: [Market]
       security: []
       summary: List simulated live market prices
       responses:
@@ -317,6 +348,7 @@ paths:
                   $ref: "#/components/examples/PriceFeedResponse"
   /me:
     get:
+      tags: [Profile]
       summary: Get current profile
       responses:
         "200":
@@ -327,6 +359,7 @@ paths:
                 success:
                   $ref: "#/components/examples/ProfileResponse"
     patch:
+      tags: [Profile]
       summary: Update current profile
       requestBody:
         required: true
@@ -356,6 +389,7 @@ paths:
                   $ref: "#/components/examples/ProfileResponse"
   /me/settings:
     get:
+      tags: [Profile]
       summary: Get user settings
       responses:
         "200":
@@ -366,6 +400,7 @@ paths:
                 success:
                   $ref: "#/components/examples/SettingsResponse"
     patch:
+      tags: [Profile]
       summary: Update user settings
       requestBody:
         required: true
@@ -401,6 +436,7 @@ paths:
                   $ref: "#/components/examples/SettingsResponse"
   /me/pin:
     patch:
+      tags: [Profile]
       summary: Update transaction PIN
       requestBody:
         required: true
@@ -428,6 +464,7 @@ paths:
                   $ref: "#/components/examples/UpdatedResponse"
   /me/devices:
     post:
+      tags: [Profile]
       summary: Register an Expo push token
       requestBody:
         required: true
@@ -454,6 +491,7 @@ paths:
                   $ref: "#/components/examples/DeviceTokenResponse"
   /me/watchlist:
     get:
+      tags: [Profile]
       summary: List watchlist assets
       responses:
         "200":
@@ -465,6 +503,7 @@ paths:
                   $ref: "#/components/examples/AssetListResponse"
   /me/watchlist/{symbol}:
     post:
+      tags: [Profile]
       summary: Add asset to watchlist
       parameters:
         - $ref: "#/components/parameters/Symbol"
@@ -477,6 +516,7 @@ paths:
                 success:
                   $ref: "#/components/examples/WatchlistSymbolsResponse"
     delete:
+      tags: [Profile]
       summary: Remove asset from watchlist
       parameters:
         - $ref: "#/components/parameters/Symbol"
@@ -490,6 +530,7 @@ paths:
                   $ref: "#/components/examples/WatchlistSymbolsResponse"
   /me/notifications:
     get:
+      tags: [Profile]
       summary: List user notifications
       responses:
         "200":
@@ -501,6 +542,7 @@ paths:
                   $ref: "#/components/examples/NotificationsResponse"
   /me/notifications/{notificationId}/read:
     patch:
+      tags: [Profile]
       summary: Mark one notification as read
       parameters:
         - in: path
@@ -518,6 +560,7 @@ paths:
                   $ref: "#/components/examples/NotificationResponse"
   /me/notifications/read-all:
     patch:
+      tags: [Profile]
       summary: Mark all notifications as read
       responses:
         "200":
@@ -529,6 +572,7 @@ paths:
                   $ref: "#/components/examples/UpdatedResponse"
   /wallet:
     get:
+      tags: [Wallet]
       summary: Get wallet balances and portfolio value
       responses:
         "200":
@@ -540,6 +584,7 @@ paths:
                   $ref: "#/components/examples/WalletResponse"
   /wallet/deposit-addresses:
     get:
+      tags: [Wallet]
       summary: List deposit addresses
       responses:
         "200":
@@ -551,6 +596,7 @@ paths:
                   $ref: "#/components/examples/DepositAddressesResponse"
   /wallet/deposit-addresses/{symbol}:
     get:
+      tags: [Wallet]
       summary: Get a deposit address and QR payload
       parameters:
         - $ref: "#/components/parameters/Symbol"
@@ -564,6 +610,7 @@ paths:
                   $ref: "#/components/examples/DepositAddressResponse"
   /wallet/transactions:
     get:
+      tags: [Wallet]
       summary: List user transactions
       parameters:
         - in: query
@@ -584,6 +631,7 @@ paths:
                   $ref: "#/components/examples/TransactionListResponse"
   /wallet/transactions/{transactionId}:
     get:
+      tags: [Wallet]
       summary: Get transaction details
       parameters:
         - in: path
@@ -601,6 +649,7 @@ paths:
                   $ref: "#/components/examples/TransactionResponse"
   /wallet/deposit/simulate:
     post:
+      tags: [Wallet]
       summary: Simulate a sandbox USD deposit
       requestBody:
         required: true
@@ -623,6 +672,7 @@ paths:
                   $ref: "#/components/examples/DepositResponse"
   /wallet/withdrawals:
     post:
+      tags: [Wallet]
       summary: Request a withdrawal
       requestBody:
         required: true
@@ -652,6 +702,7 @@ paths:
                   $ref: "#/components/examples/WithdrawalResponse"
   /trade/quotes:
     post:
+      tags: [Trade]
       summary: Create a buy, sell, or swap quote
       requestBody:
         required: true
@@ -684,6 +735,7 @@ paths:
                   $ref: "#/components/examples/QuoteResponse"
   /trade/execute:
     post:
+      tags: [Trade]
       summary: Execute a quote with transaction PIN
       requestBody:
         required: true
@@ -708,6 +760,7 @@ paths:
                   $ref: "#/components/examples/TradeExecutionResponse"
   /admin/dashboard:
     get:
+      tags: [Admin]
       summary: Admin metrics
       responses:
         "200":
@@ -719,6 +772,7 @@ paths:
                   $ref: "#/components/examples/AdminDashboardResponse"
   /admin/users:
     get:
+      tags: [Admin]
       summary: List customers
       responses:
         "200":
@@ -730,6 +784,7 @@ paths:
                   $ref: "#/components/examples/AdminUsersResponse"
   /admin/users/{userId}:
     get:
+      tags: [Admin]
       summary: Get customer detail, wallet, and transactions
       parameters:
         - in: path
@@ -747,6 +802,7 @@ paths:
                   $ref: "#/components/examples/AdminUserDetailResponse"
   /admin/kyc:
     get:
+      tags: [Admin]
       summary: List KYC submissions
       responses:
         "200":
@@ -758,6 +814,7 @@ paths:
                   $ref: "#/components/examples/KycListResponse"
   /admin/kyc/{kycId}:
     patch:
+      tags: [Admin]
       summary: Approve or reject KYC
       parameters:
         - in: path
@@ -790,6 +847,7 @@ paths:
                   $ref: "#/components/examples/KycResponse"
   /admin/transactions:
     get:
+      tags: [Admin]
       summary: List all transactions
       responses:
         "200":
@@ -801,6 +859,7 @@ paths:
                   $ref: "#/components/examples/TransactionListResponse"
   /admin/withdrawals:
     get:
+      tags: [Admin]
       summary: List withdrawal requests
       responses:
         "200":
@@ -812,6 +871,7 @@ paths:
                   $ref: "#/components/examples/WithdrawalListResponse"
   /admin/withdrawals/{withdrawalId}:
     patch:
+      tags: [Admin]
       summary: Approve or reject a withdrawal
       parameters:
         - in: path
@@ -844,6 +904,7 @@ paths:
                   $ref: "#/components/examples/WithdrawalResponse"
   /admin/assets:
     get:
+      tags: [Admin]
       summary: List managed assets
       responses:
         "200":
@@ -854,6 +915,7 @@ paths:
                 success:
                   $ref: "#/components/examples/AssetListResponse"
     post:
+      tags: [Admin]
       summary: Add a managed asset
       requestBody:
         required: true
@@ -900,6 +962,7 @@ paths:
                   $ref: "#/components/examples/AssetResponse"
   /admin/assets/{symbol}:
     patch:
+      tags: [Admin]
       summary: Pause or allow an asset
       parameters:
         - $ref: "#/components/parameters/Symbol"
@@ -926,6 +989,7 @@ paths:
                   $ref: "#/components/examples/AssetResponse"
   /admin/fees:
     get:
+      tags: [Admin]
       summary: Get trading fee settings
       responses:
         "200":
@@ -936,6 +1000,7 @@ paths:
                 success:
                   $ref: "#/components/examples/FeeSettingsResponse"
     patch:
+      tags: [Admin]
       summary: Update trading fee settings
       requestBody:
         required: true
