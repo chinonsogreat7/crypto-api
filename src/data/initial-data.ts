@@ -361,6 +361,7 @@ export const initialData: Database = {
     }
   ],
   twoFactorChallenges: [],
+  auditLogs: [],
   feeSettings: {
     buyFeePercent: 1,
     sellFeePercent: 1,

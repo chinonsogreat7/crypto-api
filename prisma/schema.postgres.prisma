@@ -191,3 +191,25 @@ model FeeSettings {
   withdrawalFlatUsd  Float
   spreadPercent      Float
 }
+
+model AuditLog {
+  id           String   @id
+  actorUserId  String?
+  actorEmail   String?
+  actorRole    String?
+  action       String
+  entityType   String
+  entityId     String?
+  beforeJson   String?
+  afterJson    String?
+  metadataJson String
+  ipAddress    String?
+  userAgent    String?
+  requestId    String?
+  createdAt    DateTime
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([entityType])
+  @@index([actorUserId])
+}

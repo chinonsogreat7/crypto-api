@@ -1,4 +1,5 @@
 import type {
+  AuditLog,
   AssetSymbol,
   Database,
   FiatCurrency,
@@ -14,6 +15,7 @@ import { prisma } from "./prisma";
 import { clone, db, replaceDatabase } from "./store";
 
 type PersistedSession = Awaited<ReturnType<typeof prisma.session.findMany>>[number];
+type PersistedAuditLog = Awaited<ReturnType<typeof prisma.auditLog.findMany>>[number];
 
 function toDate(value: string | null): Date | null {
   return value ? new Date(value) : null;
@@ -33,6 +35,39 @@ function sessionFromRecord(session: PersistedSession) {
     refreshTokenExpiresAt: (session.refreshTokenExpiresAt || new Date("2099-01-31T00:00:00.000Z")).toISOString(),
     createdAt: (session.createdAt || new Date(now)).toISOString(),
     lastUsedAt: (session.lastUsedAt || new Date(now)).toISOString()
+  };
+}
+
+function parseJson(value: string | null): unknown | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function parseMetadata(value: string | null): Record<string, unknown> {
+  const parsed = parseJson(value);
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+}
+
+function auditLogFromRecord(log: PersistedAuditLog): AuditLog {
+  return {
+    id: log.id,
+    actorUserId: log.actorUserId,
+    actorEmail: log.actorEmail,
+    actorRole: log.actorRole as AuditLog["actorRole"],
+    action: log.action,
+    entityType: log.entityType,
+    entityId: log.entityId,
+    before: parseJson(log.beforeJson),
+    after: parseJson(log.afterJson),
+    metadata: parseMetadata(log.metadataJson),
+    ipAddress: log.ipAddress,
+    userAgent: log.userAgent,
+    requestId: log.requestId,
+    createdAt: log.createdAt.toISOString()
   };
 }
 
@@ -73,6 +108,7 @@ export async function loadDatabase(): Promise<Database> {
     notifications,
     deviceTokens,
     priceAlerts,
+    auditLogs,
     feeSettings
   ] = await Promise.all([
     prisma.user.findMany({ orderBy: { createdAt: "asc" } }),
@@ -89,6 +125,7 @@ export async function loadDatabase(): Promise<Database> {
     prisma.notification.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.deviceToken.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.priceAlert.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.auditLog.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.feeSettings.findUnique({ where: { id: "default" } })
   ]);
 
@@ -213,6 +250,7 @@ export async function loadDatabase(): Promise<Database> {
       createdAt: alert.createdAt.toISOString()
     })),
     twoFactorChallenges: [],
+    auditLogs: auditLogs.map(auditLogFromRecord),
     feeSettings: feeSettings
       ? {
           buyFeePercent: feeSettings.buyFeePercent,
@@ -252,6 +290,7 @@ export async function saveDatabase(data: Database): Promise<void> {
   await prisma.$transaction(async (tx) => {
     await tx.notification.deleteMany();
     await tx.priceAlert.deleteMany();
+    await tx.auditLog.deleteMany();
     await tx.withdrawalRequest.deleteMany();
     await tx.kycSubmission.deleteMany();
     await tx.transaction.deleteMany();
@@ -384,6 +423,27 @@ export async function saveDatabase(data: Database): Promise<void> {
           ...alert,
           triggeredAt: toDate(alert.triggeredAt),
           createdAt: new Date(alert.createdAt)
+        }
+      });
+    }
+
+    for (const log of data.auditLogs) {
+      await tx.auditLog.create({
+        data: {
+          id: log.id,
+          actorUserId: log.actorUserId,
+          actorEmail: log.actorEmail,
+          actorRole: log.actorRole,
+          action: log.action,
+          entityType: log.entityType,
+          entityId: log.entityId,
+          beforeJson: log.before === null ? null : JSON.stringify(log.before),
+          afterJson: log.after === null ? null : JSON.stringify(log.after),
+          metadataJson: JSON.stringify(log.metadata || {}),
+          ipAddress: log.ipAddress,
+          userAgent: log.userAgent,
+          requestId: log.requestId,
+          createdAt: new Date(log.createdAt)
         }
       });
     }

@@ -1,4 +1,5 @@
 import path from "path";
+import { randomUUID } from "crypto";
 import cors from "cors";
 import express from "express";
 import morgan from "morgan";
@@ -16,7 +17,15 @@ export function createApp() {
 
   app.use(cors());
   app.use(express.json());
-  app.use(morgan("dev"));
+  app.use((req, res, next) => {
+    req.requestId = Array.isArray(req.headers["x-request-id"]) ? req.headers["x-request-id"][0] : req.headers["x-request-id"] || randomUUID();
+    req.requestStartedAt = Date.now();
+    res.setHeader("x-request-id", req.requestId);
+    next();
+  });
+
+  morgan.token("request-id", (req) => (req as express.Request).requestId || "-");
+  app.use(morgan(":method :url :status :response-time ms request_id=:request-id"));
   app.use((req, res, next) => {
     res.on("finish", () => {
       const shouldPersist = ["POST", "PATCH", "DELETE"].includes(req.method) && res.statusCode < 400;

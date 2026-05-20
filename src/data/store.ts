@@ -26,6 +26,7 @@ export function replaceDatabase(nextDb: Database): void {
   db.deviceTokens = nextDb.deviceTokens;
   db.priceAlerts = nextDb.priceAlerts;
   db.twoFactorChallenges = [];
+  db.auditLogs = nextDb.auditLogs;
   db.feeSettings = nextDb.feeSettings;
 }
 

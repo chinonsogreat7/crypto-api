@@ -220,6 +220,11 @@ async function main() {
     }
     await requestText("/admin-ui/");
     await request("/admin/dashboard", { headers: adminHeaders });
+    const adminUsersBody = await request("/admin/users?page=1&limit=2&q=Ada", { headers: adminHeaders });
+    if (adminUsersBody.meta?.limit !== 2 || !adminUsersBody.meta?.requestId) {
+      throw new Error(`admin users pagination metadata was not returned: ${JSON.stringify(adminUsersBody.meta)}`);
+    }
+    await expectBadRequest("/admin/kyc?status=bogus", { headers: adminHeaders }, "invalid admin kyc status filter");
     await request("/admin/fees", { headers: adminHeaders });
     await expectBadRequest("/admin/fees", {
       method: "PATCH",
@@ -249,6 +254,11 @@ async function main() {
       headers: { ...adminHeaders, "content-type": "application/json" },
       body: JSON.stringify({ status: "approved", reviewerNote: "Approved for classroom demo." })
     });
+    const auditBody = await request("/admin/audit-logs?page=1&limit=10", { headers: adminHeaders });
+    const actions = auditBody.data.map((log: { action: string }) => log.action);
+    if (!actions.includes("asset.status_update") || !actions.includes("kyc.review")) {
+      throw new Error(`admin audit logs did not include expected actions: ${JSON.stringify(actions)}`);
+    }
 
     await expectBadRequest("/wallet/deposit/simulate", {
       method: "POST",

@@ -20,6 +20,23 @@ export type TransactionType = "buy" | "sell" | "swap" | "deposit" | "withdrawal"
 export type TransactionStatus = "pending" | "completed" | "failed" | "cancelled" | "requires_review";
 export type UserRole = "customer" | "admin";
 
+export interface AuditLog {
+  id: string;
+  actorUserId: string | null;
+  actorEmail: string | null;
+  actorRole: UserRole | null;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  before: unknown | null;
+  after: unknown | null;
+  metadata: Record<string, unknown>;
+  ipAddress: string | null;
+  userAgent: string | null;
+  requestId: string | null;
+  createdAt: string;
+}
+
 export interface User {
   id: string;
   role: UserRole;
@@ -209,5 +226,6 @@ export interface Database {
   deviceTokens: DeviceToken[];
   priceAlerts: PriceAlert[];
   twoFactorChallenges: TwoFactorChallenge[];
+  auditLogs: AuditLog[];
   feeSettings: FeeSettings;
 }

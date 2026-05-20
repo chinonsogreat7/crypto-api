@@ -178,6 +178,23 @@ CREATE TABLE IF NOT EXISTS "FeeSettings" (
   "withdrawalFlatUsd" REAL NOT NULL,
   "spreadPercent" REAL NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS "AuditLog" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "actorUserId" TEXT,
+  "actorEmail" TEXT,
+  "actorRole" TEXT,
+  "action" TEXT NOT NULL,
+  "entityType" TEXT NOT NULL,
+  "entityId" TEXT,
+  "beforeJson" TEXT,
+  "afterJson" TEXT,
+  "metadataJson" TEXT NOT NULL,
+  "ipAddress" TEXT,
+  "userAgent" TEXT,
+  "requestId" TEXT,
+  "createdAt" DATETIME NOT NULL
+);
 `;
 
 function runSql(input: string): string {
@@ -218,5 +235,9 @@ addColumnIfMissing("Session", "createdAt", "DATETIME NOT NULL DEFAULT '2026-05-2
 addColumnIfMissing("Session", "lastUsedAt", "DATETIME NOT NULL DEFAULT '2026-05-20T00:00:00.000Z'");
 runSql(`UPDATE "Session" SET "refreshToken" = "token" || '-refresh' WHERE "refreshToken" = '';`);
 runSql(`CREATE UNIQUE INDEX IF NOT EXISTS "Session_refreshToken_key" ON "Session" ("refreshToken");`);
+runSql(`CREATE INDEX IF NOT EXISTS "AuditLog_createdAt_idx" ON "AuditLog" ("createdAt");`);
+runSql(`CREATE INDEX IF NOT EXISTS "AuditLog_action_idx" ON "AuditLog" ("action");`);
+runSql(`CREATE INDEX IF NOT EXISTS "AuditLog_entityType_idx" ON "AuditLog" ("entityType");`);
+runSql(`CREATE INDEX IF NOT EXISTS "AuditLog_actorUserId_idx" ON "AuditLog" ("actorUserId");`);
 
 console.log(`SQLite schema ready at ${databasePath}`);

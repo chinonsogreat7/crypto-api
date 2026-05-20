@@ -4,7 +4,8 @@ export function notFoundHandler(req: Request, res: Response) {
   return res.status(404).json({
     error: {
       code: "NOT_FOUND",
-      message: `No route matches ${req.method} ${req.originalUrl}`
+      message: `No route matches ${req.method} ${req.originalUrl}`,
+      requestId: req.requestId
     }
   });
 }
@@ -14,7 +15,8 @@ export function errorHandler(err: Error & { status?: number; code?: string }, re
   return res.status(err.status || 500).json({
     error: {
       code: err.code || "SERVER_ERROR",
-      message: err.message || "Something went wrong."
+      message: err.message || "Something went wrong.",
+      requestId: req.requestId
     }
   });
 }

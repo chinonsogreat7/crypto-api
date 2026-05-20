@@ -1203,6 +1203,28 @@ paths:
     get:
       tags: [Admin]
       summary: List customers
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Search by name, email, phone, or user ID.
+        - in: query
+          name: kycStatus
+          schema:
+            type: string
+            enum: [not_started, pending, approved, rejected]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
       responses:
         "200":
           description: Customers
@@ -1233,6 +1255,27 @@ paths:
     get:
       tags: [Admin]
       summary: List KYC submissions
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [not_started, pending, approved, rejected]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
       responses:
         "200":
           description: KYC submissions
@@ -1278,6 +1321,32 @@ paths:
     get:
       tags: [Admin]
       summary: List all transactions
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [buy, sell, swap, deposit, withdrawal]
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, completed, failed, cancelled, requires_review]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
       responses:
         "200":
           description: Transactions
@@ -1290,6 +1359,27 @@ paths:
     get:
       tags: [Admin]
       summary: List withdrawal requests
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
       responses:
         "200":
           description: Withdrawals
@@ -1335,6 +1425,26 @@ paths:
     get:
       tags: [Admin]
       summary: List managed assets
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: isActive
+          schema:
+            type: boolean
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
       responses:
         "200":
           description: Assets
@@ -1461,6 +1571,48 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/FeeSettingsResponse"
+  /admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: List immutable admin audit logs
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: action
+          schema:
+            type: string
+          example: kyc.review
+        - in: query
+          name: entityType
+          schema:
+            type: string
+          example: kyc_submission
+        - in: query
+          name: actorUserId
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Audit logs
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AuditLogListResponse"
 components:
   securitySchemes:
     bearerAuth:
@@ -2026,3 +2178,36 @@ components:
           swapFeePercent: 0.8
           withdrawalFlatUsd: 2
           spreadPercent: 0.4
+    AuditLogListResponse:
+      summary: Admin audit logs
+      value:
+        data:
+          - id: audit_abc123
+            actorUserId: usr_admin
+            actorEmail: admin@cryptoclass.test
+            actorRole: admin
+            action: kyc.review
+            entityType: kyc_submission
+            entityId: kyc_student
+            before:
+              submission:
+                status: pending
+            after:
+              submission:
+                status: approved
+            metadata:
+              status: approved
+              targetUserId: usr_student
+            ipAddress: "::ffff:127.0.0.1"
+            userAgent: "Expo/1.0"
+            requestId: 2eb23e65-7c23-4c51-bcbf-7bb2ad2a815e
+            createdAt: "2026-05-20T12:30:00.000Z"
+        meta:
+          requestId: 2eb23e65-7c23-4c51-bcbf-7bb2ad2a815e
+          count: 1
+          total: 1
+          page: 1
+          limit: 20
+          totalPages: 1
+          hasNextPage: false
+          hasPreviousPage: false

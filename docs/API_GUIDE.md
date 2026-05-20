@@ -45,7 +45,8 @@ The API returns errors with this structure:
 {
   "error": {
     "code": "INSUFFICIENT_BALANCE",
-    "message": "Insufficient balance."
+    "message": "Insufficient balance.",
+    "requestId": "2eb23e65-7c23-4c51-bcbf-7bb2ad2a815e"
   }
 }
 ```
@@ -54,17 +55,27 @@ Successful responses use a `data` wrapper:
 
 ```json
 {
-  "data": {}
+  "data": {},
+  "meta": {
+    "requestId": "2eb23e65-7c23-4c51-bcbf-7bb2ad2a815e"
+  }
 }
 ```
 
-List responses may also include `meta`:
+List responses include `meta` with the request ID. Paginated list responses also include counts and page details:
 
 ```json
 {
   "data": [],
   "meta": {
-    "count": 0
+    "requestId": "2eb23e65-7c23-4c51-bcbf-7bb2ad2a815e",
+    "count": 0,
+    "total": 0,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 1,
+    "hasNextPage": false,
+    "hasPreviousPage": false
   }
 }
 ```
@@ -103,6 +114,7 @@ List responses may also include `meta`:
 | Admin KYC review | `GET /admin/kyc`, `PATCH /admin/kyc/:kycId` |
 | Admin withdrawals | `GET /admin/withdrawals`, `PATCH /admin/withdrawals/:withdrawalId` |
 | Admin assets and fees | `GET /admin/assets`, `POST /admin/assets`, `PATCH /admin/assets/:symbol`, `PATCH /admin/fees` |
+| Admin audit trail | `GET /admin/audit-logs` |
 
 ## Auth Flow
 
@@ -484,6 +496,16 @@ Admins can:
 - approve or reject withdrawals
 - manage supported assets
 - update fee and spread settings
+- inspect immutable audit logs for admin actions
+
+Admin list endpoints now accept backend pagination and filters. Add `page` and `limit` to page server-side, and use `q` for text search on users, KYC, transactions, withdrawals, assets, and audit logs. Status-style filters are supported where they make sense, for example `GET /admin/kyc?status=pending&page=1&limit=20`, `GET /admin/users?kycStatus=approved`, `GET /admin/withdrawals?status=pending`, and `GET /admin/audit-logs?action=kyc.review`.
+
+Admin mutations that approve KYC, review withdrawals, create or pause assets, or update fees write audit records with the actor, action, entity, old value, new value, request ID, IP, user agent, and timestamp. Fetch them with:
+
+```http
+GET /admin/audit-logs?page=1&limit=20
+Authorization: Bearer demo-admin-token
+```
 
 ## What Is Still Mocked
 
