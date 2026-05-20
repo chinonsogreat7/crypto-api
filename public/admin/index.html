@@ -75,15 +75,19 @@
       <section id="alert" class="alert hidden" role="status"></section>
 
       <section id="overview-view" class="view active">
+        <div id="overview-command" class="overview-command"></div>
         <div id="metric-grid" class="metric-grid"></div>
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <h2>Operational Queue</h2>
-              <p>KYC and withdrawal items that need attention.</p>
+        <div class="overview-layout">
+          <div class="panel queue-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Operational Queue</h2>
+                <p>KYC and withdrawal items that need attention now.</p>
+              </div>
             </div>
+            <div id="queue-summary" class="queue-grid"></div>
           </div>
-          <div id="queue-summary" class="queue-grid"></div>
+          <div id="overview-insights" class="panel insight-panel"></div>
         </div>
       </section>
 

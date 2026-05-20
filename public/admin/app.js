@@ -290,30 +290,121 @@ function inferFeesFromForm() {
 
 function renderOverview() {
   const dashboard = state.dashboard || {};
-  const metrics = [
-    ["Users", dashboard.users],
-    ["Pending KYC", dashboard.pendingKyc],
-    ["Pending Withdrawals", dashboard.pendingWithdrawals],
-    ["Assets", dashboard.assets],
-    ["Completed Volume", money(dashboard.completedVolumeUsd)]
-  ];
-
-  document.querySelector("#metric-grid").innerHTML = metrics
-    .map(([label, value]) => `<article class="metric"><span>${label}</span><strong>${value ?? 0}</strong></article>`)
-    .join("");
-
   const pendingKyc = state.kyc.filter((item) => item.status === "pending").length;
   const pendingWithdrawals = state.withdrawals.filter((item) => item.status === "pending").length;
   const completedTransactions = state.transactions.filter((item) => item.status === "completed").length;
+  const failedTransactions = state.transactions.filter((item) => ["failed", "cancelled", "requires_review"].includes(item.status)).length;
+  const activeAssets = state.assets.filter((asset) => asset.isActive).length;
+  const pausedAssets = Math.max(0, state.assets.length - activeAssets);
+  const approvedUsers = state.users.filter((user) => user.kycStatus === "approved").length;
+  const unverifiedUsers = Math.max(0, state.users.length - approvedUsers);
+  const attentionTotal = pendingKyc + pendingWithdrawals + failedTransactions;
+  const reviewLabel = attentionTotal ? `${attentionTotal} item${attentionTotal === 1 ? "" : "s"} need review` : "No review backlog";
+
+  document.querySelector("#overview-command").innerHTML = `<section class="ops-command">
+    <div class="ops-command-main">
+      <p class="eyebrow">Operations Status</p>
+      <h2>${safe(reviewLabel)}</h2>
+      <p>${safe(pendingKyc)} KYC pending · ${safe(pendingWithdrawals)} withdrawals pending · ${safe(failedTransactions)} ledger exceptions</p>
+    </div>
+    <div class="ops-command-side">
+      <span>Completed volume</span>
+      <strong>${money(dashboard.completedVolumeUsd)}</strong>
+      <small>${safe(completedTransactions)} completed ledger entries</small>
+    </div>
+  </section>`;
+
+  const metrics = [
+    { label: "Users", value: dashboard.users, detail: `${approvedUsers} approved · ${unverifiedUsers} unverified`, tone: "info" },
+    { label: "Pending KYC", value: dashboard.pendingKyc, detail: pendingKyc ? "Compliance queue open" : "No pending identity reviews", tone: pendingKyc ? "warn" : "ok" },
+    {
+      label: "Pending Withdrawals",
+      value: dashboard.pendingWithdrawals,
+      detail: pendingWithdrawals ? "Finance review needed" : "Withdrawal queue clear",
+      tone: pendingWithdrawals ? "bad" : "ok"
+    },
+    { label: "Assets", value: dashboard.assets, detail: `${activeAssets} active · ${pausedAssets} paused`, tone: pausedAssets ? "warn" : "info" }
+  ];
+
+  document.querySelector("#metric-grid").innerHTML = metrics
+    .map(
+      (metric) => `<article class="metric ${safe(metric.tone)}">
+        <span>${safe(metric.label)}</span>
+        <strong>${safe(metric.value ?? 0)}</strong>
+        <small>${safe(metric.detail)}</small>
+      </article>`
+    )
+    .join("");
 
   document.querySelector("#queue-summary").innerHTML = [
-    ["KYC waiting", pendingKyc],
-    ["Withdrawals waiting", pendingWithdrawals],
-    ["Completed ledger entries", completedTransactions],
-    ["Supported assets", state.assets.length]
+    {
+      label: "KYC waiting",
+      value: pendingKyc,
+      note: pendingKyc ? "Review identity documents" : "No submissions waiting",
+      view: "kyc",
+      action: "Open KYC"
+    },
+    {
+      label: "Withdrawals waiting",
+      value: pendingWithdrawals,
+      note: pendingWithdrawals ? "Approve or reject requests" : "No payout requests",
+      view: "withdrawals",
+      action: "Open withdrawals"
+    },
+    {
+      label: "Ledger exceptions",
+      value: failedTransactions,
+      note: failedTransactions ? "Inspect failed or review-required rows" : "No ledger exceptions",
+      view: "transactions",
+      action: "Open ledger"
+    },
+    {
+      label: "Paused assets",
+      value: pausedAssets,
+      note: pausedAssets ? "Review market availability" : "All supported assets active",
+      view: "assets",
+      action: "Open assets"
+    }
   ]
-    .map(([label, value]) => `<article class="queue-item"><span>${label}</span><strong>${value}</strong></article>`)
+    .map(
+      (item) => `<article class="queue-item${item.value ? " needs-review" : ""}">
+        <div>
+          <span>${safe(item.label)}</span>
+          <strong>${safe(item.value)}</strong>
+          <small>${safe(item.note)}</small>
+        </div>
+        <button class="table-button" data-action="switch-view" data-view="${safe(item.view)}" type="button">${safe(item.action)}</button>
+      </article>`
+    )
     .join("");
+
+  const newestKyc = state.kyc[0];
+  const newestTransaction = state.transactions[0];
+  const marketText = state.market?.lastUpdatedAt ? `Live sim updated ${time(state.market.lastUpdatedAt)}` : "Market simulator waiting";
+
+  document.querySelector("#overview-insights").innerHTML = `<div class="panel-header">
+    <div>
+      <h2>Signal Check</h2>
+      <p>Recent account, market, and ledger activity.</p>
+    </div>
+  </div>
+  <div class="insight-list">
+    <article class="insight-row">
+      <span>Latest KYC</span>
+      <strong>${safe(newestKyc ? newestKyc.legalName : "None submitted")}</strong>
+      <small>${safe(newestKyc ? `${newestKyc.status.replaceAll("_", " ")} · ${date(newestKyc.submittedAt)}` : "No KYC submissions yet")}</small>
+    </article>
+    <article class="insight-row">
+      <span>Latest ledger entry</span>
+      <strong>${safe(newestTransaction ? newestTransaction.reference : "No transactions")}</strong>
+      <small>${safe(newestTransaction ? `${newestTransaction.type} · ${newestTransaction.status} · ${date(newestTransaction.createdAt)}` : "No ledger entries yet")}</small>
+    </article>
+    <article class="insight-row">
+      <span>Market status</span>
+      <strong>${safe(marketText)}</strong>
+      <small>${safe(activeAssets)} assets available for quotes</small>
+    </article>
+  </div>`;
 }
 
 function renderUsers() {
@@ -955,6 +1046,9 @@ document.body.addEventListener("click", async (event) => {
     }
     if (target.dataset.action === "asset-status") {
       await updateAssetStatus(target.dataset.symbol, target.dataset.active === "true");
+    }
+    if (target.dataset.action === "switch-view") {
+      setView(target.dataset.view);
     }
     if (target.dataset.action === "view-user") {
       await loadUserDetails(target.dataset.id);
