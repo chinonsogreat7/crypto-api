@@ -1,6 +1,8 @@
 import express, { type Request } from "express";
+import { saveCurrentDatabase } from "../data/persistence";
 import { clone, createId, db, findBalance, getAssetPrice, getWallet, portfolioValueUsd } from "../data/store";
 import { requireAuth } from "../middleware/auth";
+import { notifyUser } from "../services/notifications";
 import type { AssetSymbol, WithdrawalRequest } from "../models";
 import { badRequest, created, notFound, ok } from "../utils/http";
 import { paginate, sortDirection } from "../utils/pagination";
@@ -8,6 +10,40 @@ import { paginate, sortDirection } from "../utils/pagination";
 export const walletRouter = express.Router();
 
 walletRouter.use(requireAuth);
+
+const DEFAULT_DEPOSIT_SETTLEMENT_SECONDS = Number(process.env.DEPOSIT_SETTLEMENT_SECONDS || 5);
+
+function depositSettlementSeconds(value: unknown): number {
+  const seconds = value === undefined ? DEFAULT_DEPOSIT_SETTLEMENT_SECONDS : Number(value);
+  if (!Number.isFinite(seconds)) return DEFAULT_DEPOSIT_SETTLEMENT_SECONDS;
+  return Math.max(0, Math.min(60, seconds));
+}
+
+function scheduleDepositSettlement(transactionId: string, delaySeconds: number): void {
+  const delayMs = delaySeconds * 1000;
+  const timer = setTimeout(async () => {
+    const transaction = db.transactions.find((item) => item.id === transactionId);
+    if (!transaction || transaction.type !== "deposit" || transaction.status !== "pending") return;
+
+    const wallet = getWallet(transaction.userId);
+    const balance = findBalance(wallet, transaction.toAsset);
+    balance.available += transaction.toAmount;
+    transaction.status = "completed";
+    transaction.completedAt = new Date().toISOString();
+    transaction.note = "Sandbox deposit settled";
+
+    await notifyUser({
+      userId: transaction.userId,
+      title: "Deposit completed",
+      body: `${transaction.toAmount} ${transaction.toAsset} has been added to your sandbox wallet.`,
+      type: "transaction",
+      data: { transactionId: transaction.id, status: transaction.status }
+    });
+    await saveCurrentDatabase();
+  }, delayMs);
+
+  timer.unref?.();
+}
 
 walletRouter.get("/", (req, res) => {
   const wallet = getWallet(req.user.id);
@@ -89,21 +125,21 @@ walletRouter.get("/transactions/:transactionId", (req, res) => {
   return ok(res, clone(transaction));
 });
 
-walletRouter.post("/deposit/simulate", (req: Request<unknown, unknown, { amount?: number }>, res) => {
+walletRouter.post("/deposit/simulate", (req: Request<unknown, unknown, { amount?: number; settlementDelaySeconds?: number }>, res) => {
   const amount = Number(req.body.amount);
   if (!Number.isFinite(amount) || amount <= 0) {
     return badRequest(res, "amount must be greater than zero.");
   }
 
   const wallet = getWallet(req.user.id);
-  const usd = findBalance(wallet, "USD");
-  usd.available += amount;
+  const settlementDelay = depositSettlementSeconds(req.body.settlementDelaySeconds);
+  const estimatedCompletionAt = new Date(Date.now() + settlementDelay * 1000).toISOString();
 
   const transaction = {
     id: createId("txn"),
     userId: req.user.id,
     type: "deposit" as const,
-    status: "completed" as const,
+    status: "pending" as const,
     fromAsset: "USD" as const,
     toAsset: "USD" as const,
     fromAmount: amount,
@@ -111,13 +147,19 @@ walletRouter.post("/deposit/simulate", (req: Request<unknown, unknown, { amount?
     feeAmount: 0,
     rate: 1,
     reference: `CRT-DEP-${Date.now()}`,
-    note: "Sandbox deposit",
+    note: "Sandbox deposit pending settlement",
     createdAt: new Date().toISOString(),
-    completedAt: new Date().toISOString()
+    completedAt: null
   };
   db.transactions.unshift(transaction);
+  scheduleDepositSettlement(transaction.id, settlementDelay);
 
-  return created(res, { transaction, wallet: clone(wallet) });
+  return created(res, {
+    transaction,
+    wallet: clone(wallet),
+    estimatedCompletionAt,
+    pollingUrl: `/wallet/transactions/${transaction.id}`
+  });
 });
 
 walletRouter.post("/withdrawals", (req: Request<unknown, unknown, { assetSymbol?: AssetSymbol; amount?: number; address?: string; network?: string }>, res) => {

@@ -13,7 +13,15 @@ const state = {
   fees: null,
   selectedUserId: null,
   selectedUserDetails: null,
-  selectedUserLoading: false
+  selectedUserLoading: false,
+  selectedKycId: null,
+  pagination: {
+    users: { page: 1, pageSize: 10 },
+    kyc: { page: 1, pageSize: 10 },
+    withdrawals: { page: 1, pageSize: 10 },
+    transactions: { page: 1, pageSize: 10 },
+    assets: { page: 1, pageSize: 10 }
+  }
 };
 
 const titleByView = {
@@ -133,6 +141,65 @@ function assetAmount(value, symbol) {
   return `${number(value, symbol === "USD" || symbol === "NGN" ? 2 : 8)} ${safe(symbol)}`;
 }
 
+function pageNumbers(currentPage, totalPages) {
+  let start = Math.max(1, currentPage - 2);
+  let end = Math.min(totalPages, start + 4);
+  start = Math.max(1, end - 4);
+
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+}
+
+function paginatedItems(key, items) {
+  const pagination = state.pagination[key];
+  const totalPages = Math.max(1, Math.ceil(items.length / pagination.pageSize));
+  pagination.page = Math.min(Math.max(1, pagination.page), totalPages);
+
+  const start = (pagination.page - 1) * pagination.pageSize;
+  return items.slice(start, start + pagination.pageSize);
+}
+
+function renderPagination(key, totalItems, label) {
+  const container = document.querySelector(`#${key}-pagination`);
+  if (!container) return;
+
+  const pagination = state.pagination[key];
+  const totalPages = Math.max(1, Math.ceil(totalItems / pagination.pageSize));
+  pagination.page = Math.min(Math.max(1, pagination.page), totalPages);
+
+  const startItem = totalItems === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
+  const endItem = Math.min(totalItems, pagination.page * pagination.pageSize);
+  const pages = pageNumbers(pagination.page, totalPages);
+
+  container.innerHTML = `<div class="pagination-summary">
+    Showing <strong>${startItem}-${endItem}</strong> of <strong>${totalItems}</strong> ${safe(label)}
+  </div>
+  <div class="pagination-controls">
+    <label>
+      <span>Rows</span>
+      <select data-action="page-size" data-key="${safe(key)}">
+        ${[10, 25, 50]
+          .map((size) => `<option value="${size}"${pagination.pageSize === size ? " selected" : ""}>${size}</option>`)
+          .join("")}
+      </select>
+    </label>
+    <button class="pagination-button" data-action="page" data-key="${safe(key)}" data-page="${pagination.page - 1}" type="button"${
+      pagination.page === 1 ? " disabled" : ""
+    }>Previous</button>
+    <div class="page-number-group">
+      ${pages
+        .map(
+          (page) => `<button class="pagination-button page-number${page === pagination.page ? " active" : ""}" data-action="page" data-key="${safe(
+            key
+          )}" data-page="${page}" type="button">${page}</button>`
+        )
+        .join("")}
+    </div>
+    <button class="pagination-button" data-action="page" data-key="${safe(key)}" data-page="${pagination.page + 1}" type="button"${
+      pagination.page === totalPages ? " disabled" : ""
+    }>Next</button>
+  </div>`;
+}
+
 function showAlert(message, type = "info") {
   alertBox.textContent = message;
   alertBox.className = `alert ${type === "error" ? "error" : ""}`;
@@ -250,7 +317,8 @@ function renderOverview() {
 }
 
 function renderUsers() {
-  document.querySelector("#users-table").innerHTML = state.users
+  const users = paginatedItems("users", state.users);
+  document.querySelector("#users-table").innerHTML = users
     .map((user) => {
       const selected = state.selectedUserId === user.id ? " selected-row" : "";
       return `<tr class="${selected}">
@@ -265,6 +333,7 @@ function renderUsers() {
       </tr>`;
     })
     .join("");
+  renderPagination("users", state.users.length, "users");
   renderUserDetails();
 }
 
@@ -558,13 +627,15 @@ function renderUserDetails() {
 }
 
 function renderKyc() {
-  document.querySelector("#kyc-table").innerHTML = state.kyc
+  const kyc = paginatedItems("kyc", state.kyc);
+  document.querySelector("#kyc-table").innerHTML = kyc
     .map((item) => {
-      const actions =
+      const reviewActions =
         item.status === "pending"
           ? `<button class="table-button approve" data-action="kyc" data-status="approved" data-id="${item.id}" type="button">Approve</button>
              <button class="table-button reject" data-action="kyc" data-status="rejected" data-id="${item.id}" type="button">Reject</button>`
           : `<span class="muted">Reviewed</span>`;
+      const actions = `<button class="table-button" data-action="view-kyc" data-id="${safe(item.id)}" type="button">View</button>${reviewActions}`;
       const photo = item.selfieImageUrl
         ? `<a class="kyc-photo-link" href="${safe(item.selfieImageUrl)}" target="_blank" rel="noreferrer">
              <img class="kyc-photo" src="${safe(item.selfieImageUrl)}" alt="${safe(item.legalName)} selfie" />
@@ -574,7 +645,8 @@ function renderKyc() {
         ? `<br><a class="inline-link" href="${safe(item.documentImageUrl)}" target="_blank" rel="noreferrer">View image</a>`
         : "";
 
-      return `<tr>
+      const selected = state.selectedKycId === item.id ? " selected-row" : "";
+      return `<tr class="${selected}">
         <td><strong>${safe(item.legalName)}</strong></td>
         <td>${photo}</td>
         <td>${safe(item.country)}</td>
@@ -585,10 +657,109 @@ function renderKyc() {
       </tr>`;
     })
     .join("");
+  renderPagination("kyc", state.kyc.length, "KYC submissions");
+  renderKycDetails();
+}
+
+function renderKycPreview(title, imageUrl, fallback) {
+  if (!imageUrl) {
+    return `<article class="kyc-preview empty-preview">
+      <span>${safe(title)}</span>
+      <strong>${safe(fallback)}</strong>
+    </article>`;
+  }
+
+  return `<a class="kyc-preview" href="${safe(imageUrl)}" target="_blank" rel="noreferrer">
+    <span>${safe(title)}</span>
+    <img src="${safe(imageUrl)}" alt="${safe(title)} preview" />
+    <strong>Open full image</strong>
+  </a>`;
+}
+
+function renderKycDetails() {
+  const panel = document.querySelector("#kyc-detail-panel");
+  if (!state.selectedKycId) {
+    panel.classList.add("hidden");
+    panel.innerHTML = "";
+    return;
+  }
+
+  const item = state.kyc.find((kyc) => kyc.id === state.selectedKycId);
+  if (!item) {
+    panel.classList.add("hidden");
+    panel.innerHTML = "";
+    state.selectedKycId = null;
+    return;
+  }
+
+  const user = state.users.find((candidate) => candidate.id === item.userId);
+  const reviewActions =
+    item.status === "pending"
+      ? `<button class="table-button approve" data-action="kyc" data-status="approved" data-id="${safe(item.id)}" type="button">Approve</button>
+         <button class="table-button reject" data-action="kyc" data-status="rejected" data-id="${safe(item.id)}" type="button">Reject</button>`
+      : `<span class="muted">Reviewed</span>`;
+
+  panel.classList.remove("hidden");
+  panel.innerHTML = `<div class="detail-header">
+    <div>
+      <p class="eyebrow">KYC Submission</p>
+      <h3>${safe(item.legalName)}</h3>
+      <p>${safe(user?.email || "No linked user email")} · ${safe(user?.phone || "No phone")}</p>
+    </div>
+    <div class="detail-actions">
+      ${reviewActions}
+      <button class="secondary-button" data-action="close-kyc" type="button">Close</button>
+    </div>
+  </div>
+
+  <div class="detail-summary">
+    <article class="summary-tile"><span>Status</span><strong>${safe(item.status.replaceAll("_", " "))}</strong></article>
+    <article class="summary-tile"><span>Country</span><strong>${safe(item.country)}</strong></article>
+    <article class="summary-tile"><span>Submitted</span><strong>${date(item.submittedAt)}</strong></article>
+    <article class="summary-tile"><span>Reviewed</span><strong>${date(item.reviewedAt)}</strong></article>
+  </div>
+
+  <div class="detail-section-grid">
+    <section class="detail-section">
+      <h4>Identity</h4>
+      <div class="detail-grid">
+        ${detailField("Submission ID", item.id)}
+        ${detailField("User ID", item.userId)}
+        ${detailField("Legal name", item.legalName)}
+        ${detailField("Document type", item.documentType)}
+        ${detailField("Document number", item.documentNumber)}
+        ${detailField("Reviewer note", item.reviewerNote || "None")}
+      </div>
+    </section>
+    <section class="detail-section">
+      <h4>Linked Account</h4>
+      <div class="detail-grid">
+        ${detailField("Customer", user?.fullName || "Unknown user")}
+        ${detailField("Email", user?.email || "Not available")}
+        ${detailField("Phone", user?.phone || "Not available")}
+        ${detailField("Account KYC", user?.kycStatus || "Not available")}
+        ${detailField("Created", user ? date(user.createdAt) : "Not available")}
+      </div>
+    </section>
+  </div>
+
+  <section class="detail-section">
+    <h4>Submitted Images</h4>
+    <div class="kyc-preview-grid">
+      ${renderKycPreview("Selfie photo", item.selfieImageUrl, "No selfie uploaded")}
+      ${renderKycPreview("Document image", item.documentImageUrl, "No document image uploaded")}
+    </div>
+  </section>`;
+}
+
+function closeKycDetails() {
+  state.selectedKycId = null;
+  renderKyc();
 }
 
 function renderWithdrawals() {
-  document.querySelector("#withdrawals-table").innerHTML = state.withdrawals
+  const withdrawals = paginatedItems("withdrawals", state.withdrawals);
+  document.querySelector("#withdrawals-table").innerHTML = withdrawals
     .map((item) => {
       const actions =
         item.status === "pending"
@@ -606,10 +777,12 @@ function renderWithdrawals() {
       </tr>`;
     })
     .join("");
+  renderPagination("withdrawals", state.withdrawals.length, "withdrawals");
 }
 
 function renderTransactions() {
-  document.querySelector("#transactions-table").innerHTML = state.transactions
+  const transactions = paginatedItems("transactions", state.transactions);
+  document.querySelector("#transactions-table").innerHTML = transactions
     .map((item) => {
       return `<tr>
         <td class="mono">${safe(item.reference)}</td>
@@ -622,6 +795,7 @@ function renderTransactions() {
       </tr>`;
     })
     .join("");
+  renderPagination("transactions", state.transactions.length, "transactions");
 }
 
 function renderAssets() {
@@ -630,7 +804,8 @@ function renderAssets() {
     marketStatus.textContent = `Live sim updated ${time(state.market?.lastUpdatedAt)}`;
   }
 
-  document.querySelector("#assets-table").innerHTML = state.assets
+  const assets = paginatedItems("assets", state.assets);
+  document.querySelector("#assets-table").innerHTML = assets
     .map((asset) => {
       const previousPrice = state.previousPrices[asset.symbol];
       const direction =
@@ -652,6 +827,7 @@ function renderAssets() {
       </tr>`;
     })
     .join("");
+  renderPagination("assets", state.assets.length, "assets");
 }
 
 function renderFees() {
@@ -786,9 +962,29 @@ document.body.addEventListener("click", async (event) => {
     if (target.dataset.action === "close-user") {
       closeUserDetails();
     }
+    if (target.dataset.action === "view-kyc") {
+      state.selectedKycId = target.dataset.id;
+      renderKyc();
+    }
+    if (target.dataset.action === "close-kyc") {
+      closeKycDetails();
+    }
+    if (target.dataset.action === "page") {
+      state.pagination[target.dataset.key].page = Number(target.dataset.page);
+      render();
+    }
   } catch (error) {
     showAlert(error.message, "error");
   }
+});
+
+document.body.addEventListener("change", (event) => {
+  const target = event.target.closest("[data-action='page-size']");
+  if (!target) return;
+
+  state.pagination[target.dataset.key].pageSize = Number(target.value);
+  state.pagination[target.dataset.key].page = 1;
+  render();
 });
 
 document.querySelector("#asset-form").addEventListener("submit", async (event) => {

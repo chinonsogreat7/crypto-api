@@ -59,8 +59,12 @@ paths:
                   example: student@cryptoclass.test
                 phone:
                   type: string
+                  description: International phone number in E.164 format.
+                  example: "+2348010000001"
                 password:
                   type: string
+                  minLength: 8
+                  example: password123
       responses:
         "201":
           description: User and token
@@ -104,6 +108,40 @@ paths:
                   $ref: "#/components/examples/AuthResponse"
                 twoFactorRequired:
                   $ref: "#/components/examples/TwoFactorChallengeResponse"
+  /auth/session:
+    get:
+      tags: [Auth]
+      summary: Check the current bearer token session
+      responses:
+        "200":
+          description: Current session
+          content:
+            application/json:
+              examples:
+                success:
+                  value:
+                    data:
+                      authenticated: true
+                      user:
+                        id: usr_student
+                        fullName: Ada Student
+                        email: student@cryptoclass.test
+                        role: customer
+                      token: demo-user-token
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current bearer token
+      responses:
+        "200":
+          description: Logout status
+          content:
+            application/json:
+              examples:
+                success:
+                  value:
+                    data:
+                      loggedOut: true
   /auth/2fa/setup:
     post:
       tags: [Auth]
@@ -634,6 +672,7 @@ paths:
     post:
       tags: [Profile]
       summary: Create a price alert
+      description: If the current simulated price already crosses the target, the alert triggers immediately and creates a notification. Otherwise, it is evaluated during market ticks.
       requestBody:
         required: true
         content:
@@ -707,6 +746,7 @@ paths:
                       direction: above
                       targetPriceUsd: 73000
                       isActive: false
+                      triggeredAt: "2026-05-20T12:00:00.000Z"
     delete:
       tags: [Profile]
       summary: Delete a price alert
@@ -906,6 +946,7 @@ paths:
     post:
       tags: [Wallet]
       summary: Simulate a sandbox USD deposit
+      description: Creates a pending deposit first. Students should poll the returned pollingUrl until the transaction status becomes completed.
       requestBody:
         required: true
         content:
@@ -917,6 +958,10 @@ paths:
                 amount:
                   type: number
                   example: 500
+                settlementDelaySeconds:
+                  type: number
+                  description: Demo settlement delay from 0 to 60 seconds.
+                  example: 5
       responses:
         "201":
           description: Deposit transaction
@@ -1658,7 +1703,7 @@ components:
             id: txn_deposit_001
             userId: usr_student
             type: deposit
-            status: completed
+            status: pending
             fromAsset: USD
             toAsset: USD
             fromAmount: 500
@@ -1666,9 +1711,9 @@ components:
             feeAmount: 0
             rate: 1
             reference: CRT-DEP-1780000000000
-            note: Sandbox deposit
+            note: Sandbox deposit pending settlement
             createdAt: "2026-05-03T14:10:00.000Z"
-            completedAt: "2026-05-03T14:10:00.000Z"
+            completedAt: null
           wallet:
             id: wallet_student
             userId: usr_student
@@ -1676,8 +1721,10 @@ components:
             depositAddresses: []
             balances:
               - assetSymbol: USD
-                available: 1500
+                available: 1000
                 locked: 0
+          estimatedCompletionAt: "2026-05-03T14:10:05.000Z"
+          pollingUrl: /wallet/transactions/txn_deposit_001
     WithdrawalResponse:
       summary: Withdrawal request
       value:

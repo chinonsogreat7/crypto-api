@@ -26,12 +26,45 @@ async function requestText(path: string, options: RequestInit = {}) {
   return body;
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function main() {
   await bootstrapDatabase();
   const server = createApp().listen(port, host);
 
   try {
     await request("/health");
+    await request("/auth/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        fullName: "Bad Phone Student",
+        email: `bad-phone-${Date.now()}@cryptoclass.test`,
+        phone: "string",
+        password: "password123"
+      })
+    }).then(
+      () => {
+        throw new Error("Invalid phone registration unexpectedly succeeded.");
+      },
+      () => undefined
+    );
+    const newUserBody = await request("/auth/register", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        fullName: "Session Student",
+        email: `session-${Date.now()}@cryptoclass.test`,
+        phone: `+23480${Math.floor(10000000 + Math.random() * 89999999)}`,
+        password: "password123"
+      })
+    });
+    const sessionHeaders = { authorization: `Bearer ${newUserBody.data.token}` };
+    await request("/auth/session", { headers: sessionHeaders });
+    await request("/auth/logout", { method: "POST", headers: sessionHeaders });
+
     await request("/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -86,7 +119,7 @@ async function main() {
     const alertBody = await request("/me/price-alerts", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
-      body: JSON.stringify({ assetSymbol: "BTC", direction: "above", targetPriceUsd: 72000 })
+      body: JSON.stringify({ assetSymbol: "BTC", direction: "above", targetPriceUsd: 1 })
     });
     await request("/me/price-alerts", { headers: userHeaders });
     await request(`/me/price-alerts/${alertBody.data.id}`, {
@@ -139,11 +172,14 @@ async function main() {
       body: JSON.stringify({ status: "approved", reviewerNote: "Approved for classroom demo." })
     });
 
-    await request("/wallet/deposit/simulate", {
+    const depositBody = await request("/wallet/deposit/simulate", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
-      body: JSON.stringify({ amount: 500 })
+      body: JSON.stringify({ amount: 500, settlementDelaySeconds: 1 })
     });
+    await request(depositBody.data.pollingUrl, { headers: userHeaders });
+    await wait(1200);
+    await request(depositBody.data.pollingUrl, { headers: userHeaders });
 
     const quoteBody = await request("/trade/quotes", {
       method: "POST",

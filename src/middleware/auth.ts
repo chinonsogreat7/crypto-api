@@ -24,6 +24,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     });
   }
 
+  req.authToken = token;
   req.user = user;
   req.publicUser = publicUser(user);
   return next();

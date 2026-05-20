@@ -76,6 +76,7 @@ List responses may also include `meta`:
 | Splash and onboarding | Static app content for now |
 | Sign up | `POST /auth/register` |
 | Sign in | `POST /auth/login` |
+| Session check and logout | `GET /auth/session`, `POST /auth/logout` |
 | OTP | `POST /auth/otp/request`, `POST /auth/otp/verify` |
 | KYC submission | `POST /auth/kyc` |
 | Home dashboard | `GET /wallet`, `GET /market/trending`, `GET /me/notifications` |
@@ -84,6 +85,7 @@ List responses may also include `meta`:
 | Simulated live prices | `GET /market/prices` |
 | Watchlist | `GET /me/watchlist`, `POST /me/watchlist/:symbol`, `DELETE /me/watchlist/:symbol` |
 | Wallet | `GET /wallet` |
+| Portfolio chart | `GET /wallet/portfolio/history` |
 | Deposit or QR code | `GET /wallet/deposit-addresses`, `GET /wallet/deposit-addresses/:symbol` |
 | Mock fund wallet | `POST /wallet/deposit/simulate` |
 | Withdrawal | `POST /wallet/withdrawals` |
@@ -93,6 +95,7 @@ List responses may also include `meta`:
 | Transaction details | `GET /wallet/transactions/:transactionId` |
 | Profile | `GET /me`, `PATCH /me` |
 | Settings | `GET /me/settings`, `PATCH /me/settings`, `PATCH /me/pin` |
+| Price alerts | `GET /me/price-alerts`, `POST /me/price-alerts`, `PATCH /me/price-alerts/:alertId`, `DELETE /me/price-alerts/:alertId` |
 | Push token registration | `POST /me/devices` |
 | Notifications | `GET /me/notifications`, `PATCH /me/notifications/:notificationId/read`, `PATCH /me/notifications/read-all` |
 | Admin dashboard | `GET /admin/dashboard` |
@@ -117,6 +120,8 @@ Content-Type: application/json
 }
 ```
 
+Registration validates that `email` looks like an email address, `phone` uses international format such as `+2348010000001`, and `password` is at least 8 characters. This is intentionally strict so students learn to handle validation errors before sending weak data to the API.
+
 ### Login
 
 ```http
@@ -131,6 +136,8 @@ Content-Type: application/json
 ```
 
 Use `loginType: "email"` when `identifier` is an email address, or `loginType: "phone"` when `identifier` is a phone number. The older `email` field still works for backward compatibility, but new apps should use `loginType` and `identifier`.
+
+Use `GET /auth/session` to check whether a stored token is still valid, and `POST /auth/logout` to revoke the current token.
 
 If optional authenticator 2FA is enabled, login returns a challenge instead of a token:
 
@@ -278,11 +285,11 @@ Content-Type: application/json
 }
 ```
 
-The API always creates in-app notifications in `GET /me/notifications`. Real Expo push delivery is optional and only runs when `ENABLE_PUSH_NOTIFICATIONS=true` is set on the backend. Current push triggers include KYC review, withdrawal review, and completed trades.
+The API always creates in-app notifications in `GET /me/notifications`. Real Expo push delivery is optional and only runs when `ENABLE_PUSH_NOTIFICATIONS=true` is set on the backend. Current push triggers include KYC review, withdrawal review, completed deposits, completed trades, and triggered price alerts.
 
 `GET /wallet` returns balances and total portfolio value.
 
-`POST /wallet/deposit/simulate` adds fake USD to the user wallet so students can test buy flows without real payments.
+`POST /wallet/deposit/simulate` creates a pending fake USD deposit so students can test polling and status updates without real payments.
 
 ```http
 POST /wallet/deposit/simulate
@@ -290,9 +297,12 @@ Authorization: Bearer demo-user-token
 Content-Type: application/json
 
 {
-  "amount": 500
+  "amount": 500,
+  "settlementDelaySeconds": 5
 }
 ```
+
+The response includes a `pollingUrl`. Poll that transaction until its `status` changes from `pending` to `completed`; then refresh `GET /wallet` to show the credited balance.
 
 `GET /wallet/deposit-addresses/:symbol` returns a demo address and QR payload for a crypto deposit screen. These are not real custody addresses.
 
@@ -363,7 +373,7 @@ Content-Type: application/json
 }
 ```
 
-Use `GET /me/price-alerts`, `PATCH /me/price-alerts/:alertId`, and `DELETE /me/price-alerts/:alertId` for the rest of the CRUD flow.
+Use `GET /me/price-alerts`, `PATCH /me/price-alerts/:alertId`, and `DELETE /me/price-alerts/:alertId` for the rest of the CRUD flow. Active alerts trigger automatically when simulated market prices cross the target, then the API creates a `price_alert` notification.
 
 ## KYC Upload Storage
 

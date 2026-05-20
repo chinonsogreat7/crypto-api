@@ -1,5 +1,6 @@
 import { db } from "./store";
 import type { Asset, AssetSymbol } from "../models";
+import { evaluatePriceAlerts } from "../services/price-alerts";
 
 const TICK_INTERVAL_MS = Number(process.env.MARKET_TICK_INTERVAL_MS || 10000);
 const MAX_HISTORY_POINTS = 48;
@@ -75,6 +76,9 @@ export function simulateMarketTick(): void {
   }
 
   marketState.lastUpdatedAt = updatedAt;
+  evaluatePriceAlerts({ persist: true }).catch((error) => {
+    console.error("Failed to evaluate price alerts", error);
+  });
 }
 
 export function startMarketSimulator(): void {

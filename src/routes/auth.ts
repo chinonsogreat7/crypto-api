@@ -5,6 +5,15 @@ import { createKycUpload, type KycUploadRequest } from "../services/storage";
 import { generateTotpSecret, otpauthUri, verifyTotpCode } from "../services/totp";
 import type { KycSubmission, User } from "../models";
 import { badRequest, created, ok } from "../utils/http";
+import {
+  isEmail,
+  isHttpUrlOrStoragePath,
+  isNonEmptyString,
+  isPhoneNumber,
+  isStrongEnoughPassword,
+  normalizeEmail,
+  normalizePhone
+} from "../utils/validation";
 
 export const authRouter = express.Router();
 
@@ -73,23 +82,57 @@ function createTwoFactorChallenge(user: User) {
   return challenge;
 }
 
+authRouter.get("/session", requireAuth, (req, res) => {
+  return ok(res, {
+    authenticated: true,
+    user: req.publicUser,
+    token: req.authToken
+  });
+});
+
+authRouter.post("/logout", requireAuth, (req, res) => {
+  db.sessions = db.sessions.filter((session) => session.token !== req.authToken);
+  return ok(res, { loggedOut: true });
+});
+
 authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res) => {
   const { fullName, email, phone, password } = req.body;
   if (!fullName || !email || !phone || !password) {
     return badRequest(res, "fullName, email, phone, and password are required.");
   }
 
-  const normalizedEmail = email.toLowerCase();
+  if (!isNonEmptyString(fullName, 2, 80)) {
+    return badRequest(res, "fullName must be between 2 and 80 characters.", "INVALID_FULL_NAME");
+  }
+
+  if (!isEmail(email)) {
+    return badRequest(res, "email must be a valid email address.", "INVALID_EMAIL");
+  }
+
+  if (!isPhoneNumber(phone)) {
+    return badRequest(res, "phone must be a valid international phone number, for example +2348010000001.", "INVALID_PHONE");
+  }
+
+  if (!isStrongEnoughPassword(password)) {
+    return badRequest(res, "password must be at least 8 characters.", "INVALID_PASSWORD");
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedPhone = normalizePhone(phone);
   if (db.users.some((user) => user.email === normalizedEmail)) {
     return badRequest(res, "A user with this email already exists.", "EMAIL_EXISTS");
+  }
+
+  if (db.users.some((user) => user.phone === normalizedPhone)) {
+    return badRequest(res, "A user with this phone number already exists.", "PHONE_EXISTS");
   }
 
   const user: User = {
     id: createId("usr"),
     role: "customer",
-    fullName,
+    fullName: fullName.trim(),
     email: normalizedEmail,
-    phone,
+    phone: normalizedPhone,
     password,
     pin: "0000",
     twoFactorEnabled: false,
@@ -141,7 +184,16 @@ authRouter.post("/login", (req: Request<unknown, unknown, LoginBody>, res) => {
     return badRequest(res, "identifier and password are required.");
   }
 
-  const user = findUserByLogin(loginType, identifier);
+  if (loginType === "email" && !isEmail(identifier)) {
+    return badRequest(res, "identifier must be a valid email address.", "INVALID_EMAIL");
+  }
+
+  if (loginType === "phone" && !isPhoneNumber(identifier)) {
+    return badRequest(res, "identifier must be a valid international phone number.", "INVALID_PHONE");
+  }
+
+  const normalizedIdentifier = loginType === "phone" ? normalizePhone(identifier) : normalizeEmail(identifier);
+  const user = findUserByLogin(loginType, normalizedIdentifier);
   if (!user || user.password !== password) {
     return res.status(401).json({
       error: {
@@ -225,8 +277,8 @@ authRouter.post("/2fa/disable", requireAuth, (req: Request<unknown, unknown, { p
 });
 
 authRouter.post("/otp/request", (req: Request<unknown, unknown, { email?: string }>, res) => {
-  if (!req.body.email) {
-    return badRequest(res, "email is required.");
+  if (!req.body.email || !isEmail(req.body.email)) {
+    return badRequest(res, "email must be a valid email address.", "INVALID_EMAIL");
   }
 
   return ok(res, {
@@ -237,8 +289,8 @@ authRouter.post("/otp/request", (req: Request<unknown, unknown, { email?: string
 });
 
 authRouter.post("/otp/verify", (req: Request<unknown, unknown, VerifyOtpBody>, res) => {
-  if (!req.body.email || !req.body.code) {
-    return badRequest(res, "email and code are required.");
+  if (!req.body.email || !isEmail(req.body.email) || !req.body.code) {
+    return badRequest(res, "a valid email and code are required.");
   }
 
   if (req.body.code !== "123456") {
@@ -271,17 +323,25 @@ authRouter.post("/kyc", (req: Request<unknown, unknown, KycBody>, res) => {
     return badRequest(res, "legalName, country, documentType, and documentNumber are required.");
   }
 
-  if ((selfieImageUrl && !URL.canParse(selfieImageUrl)) || (documentImageUrl && !URL.canParse(documentImageUrl))) {
-    return badRequest(res, "selfieImageUrl and documentImageUrl must be valid URLs when provided.", "INVALID_KYC_IMAGE_URL");
+  if (!isNonEmptyString(legalName, 2, 120) || !isNonEmptyString(country, 2, 80) || !isNonEmptyString(documentNumber, 3, 80)) {
+    return badRequest(res, "legalName, country, and documentNumber must be valid text values.", "INVALID_KYC_DETAILS");
+  }
+
+  if (!["national_id", "passport", "drivers_license"].includes(documentType)) {
+    return badRequest(res, "documentType must be national_id, passport, or drivers_license.", "INVALID_DOCUMENT_TYPE");
+  }
+
+  if ((selfieImageUrl && !isHttpUrlOrStoragePath(selfieImageUrl)) || (documentImageUrl && !isHttpUrlOrStoragePath(documentImageUrl))) {
+    return badRequest(res, "selfieImageUrl and documentImageUrl must be http(s) URLs or demo /storage/files paths.", "INVALID_KYC_IMAGE_URL");
   }
 
   const submission: KycSubmission = {
     id: createId("kyc"),
     userId: user.id,
-    legalName,
-    country,
+    legalName: legalName.trim(),
+    country: country.trim(),
     documentType,
-    documentNumber,
+    documentNumber: documentNumber.trim(),
     selfieImageUrl: selfieImageUrl || null,
     documentImageUrl: documentImageUrl || null,
     status: "pending",

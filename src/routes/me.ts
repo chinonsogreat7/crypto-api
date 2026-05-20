@@ -2,6 +2,7 @@ import express, { type Request } from "express";
 import { clone, createId, db, publicUser } from "../data/store";
 import { requireAuth } from "../middleware/auth";
 import { isExpoPushToken, registerDeviceToken } from "../services/notifications";
+import { evaluatePriceAlerts } from "../services/price-alerts";
 import type { AssetSymbol, DeviceToken, PriceAlert, PublicUser, UserSettings } from "../models";
 import { badRequest, created, notFound, ok } from "../utils/http";
 
@@ -118,7 +119,7 @@ meRouter.get("/price-alerts", (req, res) => {
   });
 });
 
-meRouter.post("/price-alerts", (req: Request<unknown, unknown, PriceAlertBody>, res) => {
+meRouter.post("/price-alerts", async (req: Request<unknown, unknown, PriceAlertBody>, res) => {
   const { assetSymbol, direction } = req.body;
   const targetPriceUsd = Number(req.body.targetPriceUsd);
   if (!assetSymbol || !direction || !["above", "below"].includes(direction) || !Number.isFinite(targetPriceUsd) || targetPriceUsd <= 0) {
@@ -140,11 +141,12 @@ meRouter.post("/price-alerts", (req: Request<unknown, unknown, PriceAlertBody>, 
     createdAt: new Date().toISOString()
   };
   db.priceAlerts.unshift(alert);
+  await evaluatePriceAlerts();
 
   return created(res, clone(alert));
 });
 
-meRouter.patch("/price-alerts/:alertId", (req: Request<{ alertId: string }, unknown, PriceAlertBody>, res) => {
+meRouter.patch("/price-alerts/:alertId", async (req: Request<{ alertId: string }, unknown, PriceAlertBody>, res) => {
   const alert = db.priceAlerts.find((item) => item.id === req.params.alertId && item.userId === req.user.id);
   if (!alert) {
     return notFound(res, "Price alert was not found.", "PRICE_ALERT_NOT_FOUND");
@@ -168,8 +170,10 @@ meRouter.patch("/price-alerts/:alertId", (req: Request<{ alertId: string }, unkn
 
   if (req.body.isActive !== undefined) {
     alert.isActive = Boolean(req.body.isActive);
+    if (alert.isActive) alert.triggeredAt = null;
   }
 
+  await evaluatePriceAlerts();
   return ok(res, clone(alert));
 });
 
