@@ -26,6 +26,11 @@ CREATE TABLE IF NOT EXISTS "User" (
 CREATE TABLE IF NOT EXISTS "Session" (
   "token" TEXT NOT NULL PRIMARY KEY,
   "userId" TEXT NOT NULL,
+  "refreshToken" TEXT NOT NULL UNIQUE,
+  "accessTokenExpiresAt" DATETIME NOT NULL,
+  "refreshTokenExpiresAt" DATETIME NOT NULL,
+  "createdAt" DATETIME NOT NULL,
+  "lastUsedAt" DATETIME NOT NULL,
   FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -204,5 +209,12 @@ addColumnIfMissing("KycSubmission", "selfieImageUrl", "TEXT");
 addColumnIfMissing("KycSubmission", "documentImageUrl", "TEXT");
 addColumnIfMissing("User", "twoFactorEnabled", "BOOLEAN NOT NULL DEFAULT false");
 addColumnIfMissing("User", "twoFactorSecret", "TEXT");
+addColumnIfMissing("Session", "refreshToken", "TEXT NOT NULL DEFAULT ''");
+addColumnIfMissing("Session", "accessTokenExpiresAt", "DATETIME NOT NULL DEFAULT '2099-01-01T00:00:00.000Z'");
+addColumnIfMissing("Session", "refreshTokenExpiresAt", "DATETIME NOT NULL DEFAULT '2099-01-31T00:00:00.000Z'");
+addColumnIfMissing("Session", "createdAt", "DATETIME NOT NULL DEFAULT '2026-05-20T00:00:00.000Z'");
+addColumnIfMissing("Session", "lastUsedAt", "DATETIME NOT NULL DEFAULT '2026-05-20T00:00:00.000Z'");
+runSql(`UPDATE "Session" SET "refreshToken" = "token" || '-refresh' WHERE "refreshToken" = '';`);
+runSql(`CREATE UNIQUE INDEX IF NOT EXISTS "Session_refreshToken_key" ON "Session" ("refreshToken");`);
 
 console.log(`SQLite schema ready at ${databasePath}`);

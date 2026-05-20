@@ -13,12 +13,27 @@ import { initialData } from "./initial-data";
 import { prisma } from "./prisma";
 import { clone, db, replaceDatabase } from "./store";
 
+type PersistedSession = Awaited<ReturnType<typeof prisma.session.findMany>>[number];
+
 function toDate(value: string | null): Date | null {
   return value ? new Date(value) : null;
 }
 
 function toIso(value: Date | null): string | null {
   return value ? value.toISOString() : null;
+}
+
+function sessionFromRecord(session: PersistedSession) {
+  const now = new Date().toISOString();
+  return {
+    token: session.token,
+    userId: session.userId,
+    refreshToken: session.refreshToken || `${session.token}-refresh`,
+    accessTokenExpiresAt: (session.accessTokenExpiresAt || new Date("2099-01-01T00:00:00.000Z")).toISOString(),
+    refreshTokenExpiresAt: (session.refreshTokenExpiresAt || new Date("2099-01-31T00:00:00.000Z")).toISOString(),
+    createdAt: (session.createdAt || new Date(now)).toISOString(),
+    lastUsedAt: (session.lastUsedAt || new Date(now)).toISOString()
+  };
 }
 
 export async function seedDatabase(data: Database = initialData): Promise<void> {
@@ -94,7 +109,7 @@ export async function loadDatabase(): Promise<Database> {
       settings: JSON.parse(user.settings) as UserSettings,
       createdAt: user.createdAt.toISOString()
     })),
-    sessions,
+    sessions: sessions.map(sessionFromRecord),
     assets: assets.map((asset) => ({
       ...asset,
       symbol: asset.symbol as AssetSymbol

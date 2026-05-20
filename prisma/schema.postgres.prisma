@@ -33,9 +33,14 @@ model User {
 }
 
 model Session {
-  token  String @id
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token                 String   @id
+  userId                String
+  refreshToken          String   @unique
+  accessTokenExpiresAt  DateTime
+  refreshTokenExpiresAt DateTime
+  createdAt             DateTime
+  lastUsedAt            DateTime
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Asset {

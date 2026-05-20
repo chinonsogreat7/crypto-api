@@ -51,6 +51,11 @@ export interface UserSettings {
 export interface Session {
   token: string;
   userId: string;
+  refreshToken: string;
+  accessTokenExpiresAt: string;
+  refreshTokenExpiresAt: string;
+  createdAt: string;
+  lastUsedAt: string;
 }
 
 export interface Asset {

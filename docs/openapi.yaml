@@ -87,7 +87,7 @@ paths:
                   example: password123
       responses:
         "201":
-          description: User and token
+          description: User, access token, and refresh token
           content:
             application/json:
               examples:
@@ -120,7 +120,7 @@ paths:
                   example: password123
       responses:
         "200":
-          description: User and token, or a 2FA challenge
+          description: User tokens, or a 2FA challenge
           content:
             application/json:
               examples:
@@ -147,7 +147,13 @@ paths:
                         fullName: Ada Student
                         email: student@cryptoclass.test
                         role: customer
+                      accessToken: demo-user-token
                       token: demo-user-token
+                      refreshToken: demo-user-refresh-token
+                      tokenType: Bearer
+                      expiresAt: "2099-01-01T00:00:00.000Z"
+                      expiresInSeconds: 2300000000
+                      refreshTokenExpiresAt: "2099-01-31T00:00:00.000Z"
   /auth/logout:
     post:
       tags: [Auth]
@@ -162,6 +168,31 @@ paths:
                   value:
                     data:
                       loggedOut: true
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Rotate tokens with a refresh token
+      description: Returns a new access token and a new refresh token. The previous refresh token is no longer valid after this call.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+                  example: demo-user-refresh-token
+      responses:
+        "200":
+          description: New tokens for the same user
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/AuthResponse"
   /auth/2fa/setup:
     post:
       tags: [Auth]
@@ -218,7 +249,7 @@ paths:
                   example: "123456"
       responses:
         "200":
-          description: User and token
+          description: User, access token, and refresh token
           content:
             application/json:
               examples:
@@ -345,8 +376,8 @@ paths:
   /auth/kyc/uploads:
     post:
       tags: [Auth]
-      summary: Create a demo KYC upload URL
-      description: Returns a simulated pre-signed upload URL. Mobile apps can upload first, then submit the returned publicUrl in /auth/kyc.
+      summary: Create KYC upload instructions
+      description: Returns demo local upload instructions by default, or signed Cloudinary direct-upload instructions when Cloudinary environment variables are configured. Cloudinary uploads are grouped by user in kyc/{userId}/{documentKind}.
       requestBody:
         required: true
         content:
@@ -367,11 +398,11 @@ paths:
                   example: document_front
       responses:
         "201":
-          description: Demo upload instructions
+          description: Upload instructions
           content:
             application/json:
               examples:
-                success:
+                demoStorage:
                   value:
                     data:
                       uploadId: upload_abc123
@@ -382,6 +413,27 @@ paths:
                       method: PUT
                       headers:
                         content-type: image/png
+                      expiresAt: "2026-05-20T13:10:00.000Z"
+                cloudinary:
+                  value:
+                    data:
+                      uploadId: upload_abc123
+                      provider: cloudinary
+                      cloudName: dbh1f4yce
+                      storageKey: kyc/usr_student/document_front/upload_abc123-student-national-id
+                      folder: kyc/usr_student/document_front
+                      publicId: kyc/usr_student/document_front/upload_abc123-student-national-id
+                      uploadUrl: https://api.cloudinary.com/v1_1/dbh1f4yce/auto/upload
+                      publicUrl: https://res.cloudinary.com/dbh1f4yce/image/upload/kyc/usr_student/document_front/upload_abc123-student-national-id
+                      method: POST
+                      headers: {}
+                      formFields:
+                        folder: kyc/usr_student/document_front
+                        overwrite: "false"
+                        public_id: upload_abc123-student-national-id
+                        timestamp: 1779282600
+                        api_key: "********"
+                        signature: "********"
                       expiresAt: "2026-05-20T13:10:00.000Z"
   /market/assets:
     get:
@@ -1417,6 +1469,12 @@ components:
               biometricEnabled: false
             createdAt: "2026-05-03T14:00:00.000Z"
           token: demo-user-token
+          accessToken: demo-user-token
+          refreshToken: demo-user-refresh-token
+          tokenType: Bearer
+          expiresAt: "2099-01-01T00:00:00.000Z"
+          expiresInSeconds: 2300000000
+          refreshTokenExpiresAt: "2099-01-31T00:00:00.000Z"
     TwoFactorChallengeResponse:
       summary: 2FA challenge required
       value:

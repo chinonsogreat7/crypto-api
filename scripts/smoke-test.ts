@@ -31,10 +31,14 @@ function wait(ms: number) {
 }
 
 async function expectBadRequest(path: string, options: RequestInit, label: string) {
+  await expectStatus(path, options, 400, label);
+}
+
+async function expectStatus(path: string, options: RequestInit, status: number, label: string) {
   const response = await fetch(`${baseUrl}${path}`, options);
-  if (response.status !== 400) {
+  if (response.status !== status) {
     const body = await response.text();
-    throw new Error(`${label} expected 400 but got ${response.status}: ${body}`);
+    throw new Error(`${label} expected ${status} but got ${response.status}: ${body}`);
   }
 }
 
@@ -64,7 +68,20 @@ async function main() {
         password: "password123"
       })
     });
-    const sessionHeaders = { authorization: `Bearer ${newUserBody.data.token}` };
+    if (!newUserBody.data.accessToken || !newUserBody.data.refreshToken) {
+      throw new Error("registration did not return accessToken and refreshToken");
+    }
+    const refreshBody = await request("/auth/refresh", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refreshToken: newUserBody.data.refreshToken })
+    });
+    await expectStatus("/auth/refresh", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refreshToken: newUserBody.data.refreshToken })
+    }, 401, "reusing rotated refresh token");
+    const sessionHeaders = { authorization: `Bearer ${refreshBody.data.accessToken}` };
     await request("/auth/session", { headers: sessionHeaders });
     await request("/auth/logout", { method: "POST", headers: sessionHeaders });
 
@@ -172,12 +189,18 @@ async function main() {
         documentKind: "document_front"
       })
     });
-    await request(uploadBody.data.uploadUrl, {
-      method: "PUT",
-      headers: { "content-type": "image/png" },
-      body: "demo image bytes"
-    });
-    await request(uploadBody.data.publicUrl);
+    if (uploadBody.data.provider === "demo_local_storage") {
+      await request(uploadBody.data.uploadUrl, {
+        method: "PUT",
+        headers: { "content-type": "image/png" },
+        body: "demo image bytes"
+      });
+      await request(uploadBody.data.publicUrl);
+    } else {
+      if (uploadBody.data.provider !== "cloudinary" || !String(uploadBody.data.folder).includes("/usr_student/document_front")) {
+        throw new Error(`Unexpected Cloudinary upload instructions: ${JSON.stringify(uploadBody.data)}`);
+      }
+    }
     await requestText("/admin-ui/");
     await request("/admin/dashboard", { headers: adminHeaders });
     await request("/admin/fees", { headers: adminHeaders });

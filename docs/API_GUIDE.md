@@ -76,7 +76,7 @@ List responses may also include `meta`:
 | Splash and onboarding | Static app content for now |
 | Sign up | `POST /auth/register` |
 | Sign in | `POST /auth/login` |
-| Session check and logout | `GET /auth/session`, `POST /auth/logout` |
+| Session refresh, check, and logout | `POST /auth/refresh`, `GET /auth/session`, `POST /auth/logout` |
 | OTP | `POST /auth/otp/request`, `POST /auth/otp/verify` |
 | KYC submission | `POST /auth/kyc` |
 | Home dashboard | `GET /wallet`, `GET /market/trending`, `GET /me/notifications` |
@@ -137,7 +137,36 @@ Content-Type: application/json
 
 Use `loginType: "email"` when `identifier` is an email address, or `loginType: "phone"` when `identifier` is a phone number. The older `email` field still works for backward compatibility, but new apps should use `loginType` and `identifier`.
 
-Use `GET /auth/session` to check whether a stored token is still valid, and `POST /auth/logout` to revoke the current token.
+Successful register, login, and 2FA verify responses now return both a short-lived access token and a longer-lived refresh token:
+
+```json
+{
+  "data": {
+    "accessToken": "access_...",
+    "token": "access_...",
+    "refreshToken": "refresh_...",
+    "tokenType": "Bearer",
+    "expiresAt": "2026-05-20T12:15:00.000Z",
+    "expiresInSeconds": 900,
+    "refreshTokenExpiresAt": "2026-06-19T12:00:00.000Z"
+  }
+}
+```
+
+Use `accessToken` in `Authorization: Bearer ...` for protected requests. The `token` field is kept as a compatibility alias for older lessons.
+
+When the access token expires, send the refresh token to rotate both tokens:
+
+```http
+POST /auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "refresh_..."
+}
+```
+
+After refresh succeeds, store the new `accessToken` and new `refreshToken`, then discard the old ones. Use `GET /auth/session` to check whether a stored access token is still valid, and `POST /auth/logout` to revoke the current token pair.
 
 If optional authenticator 2FA is enabled, login returns a challenge instead of a token:
 
@@ -394,7 +423,13 @@ Use `GET /me/price-alerts`, `PATCH /me/price-alerts/:alertId`, and `DELETE /me/p
 
 ## KYC Upload Storage
 
-For classroom use, KYC uploads are simulated with a storage URL flow:
+KYC uploads use a storage URL flow. In local teaching mode, the API returns demo `/storage/...` URLs. When Cloudinary is configured, the same endpoint returns signed direct-upload instructions for Cloudinary and places files in per-user folders:
+
+```text
+kyc/<userId>/<documentKind>
+```
+
+Configure Cloudinary with either `CLOUDINARY_URL` or the split variables `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET`. You can override the root folder with `CLOUDINARY_KYC_FOLDER`.
 
 ```http
 POST /auth/kyc/uploads
@@ -408,7 +443,7 @@ Content-Type: application/json
 }
 ```
 
-The response returns a demo `uploadUrl` and `publicUrl`. In the mobile app, students can learn the production pattern: request an upload URL, upload the file, then submit the returned `publicUrl` in `POST /auth/kyc`.
+The response returns `uploadUrl`, `method`, and either demo headers or Cloudinary `formFields`. In the mobile app, request upload instructions, upload the file, then submit the resulting Cloudinary `secure_url` or demo `publicUrl` in `POST /auth/kyc`.
 
 ## Admin Responsibilities
 

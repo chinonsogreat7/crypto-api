@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { findUserByToken, publicUser } from "../data/store";
+import { findSessionByToken, findUserByToken, publicUser } from "../data/store";
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const header = req.get("authorization") || "";
@@ -15,7 +15,8 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   }
 
   const user = findUserByToken(token);
-  if (!user) {
+  const session = findSessionByToken(token);
+  if (!user || !session) {
     return res.status(401).json({
       error: {
         code: "INVALID_TOKEN",
@@ -24,6 +25,16 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     });
   }
 
+  if (new Date(session.accessTokenExpiresAt).getTime() < Date.now()) {
+    return res.status(401).json({
+      error: {
+        code: "ACCESS_TOKEN_EXPIRED",
+        message: "The access token has expired. Use /auth/refresh with a refresh token."
+      }
+    });
+  }
+
+  session.lastUsedAt = new Date().toISOString();
   req.authToken = token;
   req.user = user;
   req.publicUser = publicUser(user);

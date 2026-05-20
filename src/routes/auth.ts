@@ -2,8 +2,9 @@ import express, { type Request } from "express";
 import { clone, createId, db, publicUser } from "../data/store";
 import { requireAuth } from "../middleware/auth";
 import { createKycUpload, type KycUploadRequest } from "../services/storage";
+import { createSession, findSessionByRefreshToken, rotateSession, tokenMetadata } from "../services/tokens";
 import { generateTotpSecret, otpauthUri, verifyTotpCode } from "../services/totp";
-import type { KycSubmission, User } from "../models";
+import type { KycSubmission, Session, User } from "../models";
 import { badRequest, created, ok } from "../utils/http";
 import {
   isEnumValue,
@@ -28,6 +29,10 @@ interface LoginBody {
 interface TwoFactorVerifyBody {
   challengeId?: string;
   code?: string;
+}
+
+interface RefreshBody {
+  refreshToken?: string;
 }
 
 interface RegisterBody {
@@ -61,13 +66,14 @@ function findUserByLogin(loginType: "email" | "phone", identifier: string): User
   return db.users.find((item) => item.phone === trimmed);
 }
 
-function sessionFor(user: User) {
-  let session = db.sessions.find((item) => item.userId === user.id);
-  if (!session) {
-    session = { token: `demo-token-${user.id}`, userId: user.id };
-    db.sessions.push(session);
-  }
-  return session;
+function authResponse(user: User, session: Session) {
+  return {
+    user: publicUser(user),
+    accessToken: session.token,
+    token: session.token,
+    refreshToken: session.refreshToken,
+    ...tokenMetadata(session)
+  };
 }
 
 function createTwoFactorChallenge(user: User) {
@@ -84,16 +90,65 @@ function createTwoFactorChallenge(user: User) {
 }
 
 authRouter.get("/session", requireAuth, (req, res) => {
+  const session = db.sessions.find((item) => item.token === req.authToken);
+  if (!session) {
+    return res.status(401).json({
+      error: {
+        code: "INVALID_TOKEN",
+        message: "The token is invalid."
+      }
+    });
+  }
+
   return ok(res, {
     authenticated: true,
-    user: req.publicUser,
-    token: req.authToken
+    ...authResponse(req.user, session)
   });
 });
 
 authRouter.post("/logout", requireAuth, (req, res) => {
   db.sessions = db.sessions.filter((session) => session.token !== req.authToken);
   return ok(res, { loggedOut: true });
+});
+
+authRouter.post("/refresh", (req: Request<unknown, unknown, RefreshBody>, res) => {
+  if (!isNonEmptyString(req.body.refreshToken, 20, 200)) {
+    return badRequest(res, "refreshToken is required.", "INVALID_REFRESH_TOKEN");
+  }
+
+  const session = findSessionByRefreshToken(req.body.refreshToken);
+  if (!session) {
+    return res.status(401).json({
+      error: {
+        code: "INVALID_REFRESH_TOKEN",
+        message: "The refresh token is invalid."
+      }
+    });
+  }
+
+  if (new Date(session.refreshTokenExpiresAt).getTime() < Date.now()) {
+    db.sessions = db.sessions.filter((item) => item.refreshToken !== req.body.refreshToken);
+    return res.status(401).json({
+      error: {
+        code: "REFRESH_TOKEN_EXPIRED",
+        message: "The refresh token has expired. Sign in again."
+      }
+    });
+  }
+
+  const user = db.users.find((item) => item.id === session.userId);
+  if (!user) {
+    db.sessions = db.sessions.filter((item) => item.refreshToken !== req.body.refreshToken);
+    return res.status(401).json({
+      error: {
+        code: "INVALID_REFRESH_TOKEN",
+        message: "The refresh token is no longer attached to a user."
+      }
+    });
+  }
+
+  const nextSession = rotateSession(session);
+  return ok(res, authResponse(user, nextSession));
 });
 
 authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res) => {
@@ -152,9 +207,8 @@ authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res)
     createdAt: new Date().toISOString()
   };
 
-  const token = `demo-token-${user.id}`;
   db.users.push(user);
-  db.sessions.push({ token, userId: user.id });
+  const session = createSession(user);
   db.wallets.push({
     id: createId("wallet"),
     userId: user.id,
@@ -170,7 +224,7 @@ authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res)
     balances: [{ assetSymbol: "USD", available: 1000, locked: 0 }]
   });
 
-  return created(res, { user: publicUser(user), token });
+  return created(res, authResponse(user, session));
 });
 
 authRouter.post("/login", (req: Request<unknown, unknown, LoginBody>, res) => {
@@ -213,8 +267,8 @@ authRouter.post("/login", (req: Request<unknown, unknown, LoginBody>, res) => {
     });
   }
 
-  const session = sessionFor(user);
-  return ok(res, { user: publicUser(user), token: session.token });
+  const session = createSession(user);
+  return ok(res, authResponse(user, session));
 });
 
 authRouter.post("/2fa/setup", requireAuth, (req, res) => {
@@ -259,8 +313,8 @@ authRouter.post("/2fa/verify", (req: Request<unknown, unknown, TwoFactorVerifyBo
   }
 
   db.twoFactorChallenges = db.twoFactorChallenges.filter((item) => item.id !== challenge.id);
-  const session = sessionFor(user);
-  return ok(res, { user: publicUser(user), token: session.token });
+  const session = createSession(user);
+  return ok(res, authResponse(user, session));
 });
 
 authRouter.post("/2fa/disable", requireAuth, (req: Request<unknown, unknown, { password?: string; code?: string }>, res) => {
@@ -310,15 +364,8 @@ authRouter.post("/kyc/uploads", requireAuth, (req: Request<unknown, unknown, Kyc
   return created(res, upload);
 });
 
-authRouter.post("/kyc", (req: Request<unknown, unknown, KycBody>, res) => {
+authRouter.post("/kyc", requireAuth, (req: Request<unknown, unknown, KycBody>, res) => {
   const { legalName, country, documentType, documentNumber, selfieImageUrl, documentImageUrl } = req.body;
-  const token = (req.get("authorization") || "").replace("Bearer ", "");
-  const session = db.sessions.find((item) => item.token === token);
-  const user = session ? db.users.find((item) => item.id === session.userId) : null;
-
-  if (!user) {
-    return res.status(401).json({ error: { code: "AUTH_REQUIRED", message: "Send a user token." } });
-  }
 
   if (!legalName || !country || !documentType || !documentNumber) {
     return badRequest(res, "legalName, country, documentType, and documentNumber are required.");
@@ -338,7 +385,7 @@ authRouter.post("/kyc", (req: Request<unknown, unknown, KycBody>, res) => {
 
   const submission: KycSubmission = {
     id: createId("kyc"),
-    userId: user.id,
+    userId: req.user.id,
     legalName: legalName.trim(),
     country: country.trim(),
     documentType,
@@ -351,7 +398,7 @@ authRouter.post("/kyc", (req: Request<unknown, unknown, KycBody>, res) => {
     reviewerNote: null
   };
 
-  user.kycStatus = "pending";
+  req.user.kycStatus = "pending";
   db.kycSubmissions.unshift(submission);
   return created(res, clone(submission));
 });

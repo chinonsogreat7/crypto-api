@@ -52,8 +52,24 @@ export const initialData: Database = {
     }
   ],
   sessions: [
-    { token: "demo-user-token", userId: "usr_student" },
-    { token: "demo-admin-token", userId: "usr_admin" }
+    {
+      token: "demo-user-token",
+      userId: "usr_student",
+      refreshToken: "demo-user-refresh-token",
+      accessTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+      refreshTokenExpiresAt: "2099-01-31T00:00:00.000Z",
+      createdAt: now,
+      lastUsedAt: now
+    },
+    {
+      token: "demo-admin-token",
+      userId: "usr_admin",
+      refreshToken: "demo-admin-refresh-token",
+      accessTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+      refreshTokenExpiresAt: "2099-01-31T00:00:00.000Z",
+      createdAt: now,
+      lastUsedAt: now
+    }
   ],
   assets: [
     {

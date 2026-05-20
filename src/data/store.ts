@@ -42,8 +42,14 @@ export function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
-export function findUserByToken(token: string): User | null {
+export function findSessionByToken(token: string) {
   const session = db.sessions.find((item) => item.token === token);
+  if (!session) return null;
+  return session;
+}
+
+export function findUserByToken(token: string): User | null {
+  const session = findSessionByToken(token);
   if (!session) return null;
   return db.users.find((user) => user.id === session.userId) || null;
 }
