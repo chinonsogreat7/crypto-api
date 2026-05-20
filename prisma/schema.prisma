@@ -29,6 +29,7 @@ model User {
   withdrawals    WithdrawalRequest[]
   notifications  Notification[]
   deviceTokens   DeviceToken[]
+  priceAlerts    PriceAlert[]
 }
 
 model Session {
@@ -162,6 +163,18 @@ model DeviceToken {
   createdAt     DateTime
   lastSeenAt    DateTime
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PriceAlert {
+  id             String    @id
+  userId         String
+  assetSymbol    String
+  direction      String
+  targetPriceUsd Float
+  isActive       Boolean
+  triggeredAt    DateTime?
+  createdAt      DateTime
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model FeeSettings {

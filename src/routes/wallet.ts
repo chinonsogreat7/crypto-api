@@ -3,6 +3,7 @@ import { clone, createId, db, findBalance, getAssetPrice, getWallet, portfolioVa
 import { requireAuth } from "../middleware/auth";
 import type { AssetSymbol, WithdrawalRequest } from "../models";
 import { badRequest, created, notFound, ok } from "../utils/http";
+import { paginate, sortDirection } from "../utils/pagination";
 
 export const walletRouter = express.Router();
 
@@ -33,11 +34,50 @@ walletRouter.get("/deposit-addresses/:symbol", (req, res) => {
 
 walletRouter.get("/transactions", (req, res) => {
   const status = typeof req.query.status === "string" ? req.query.status : undefined;
+  const type = typeof req.query.type === "string" ? req.query.type : undefined;
+  const direction = sortDirection(req);
   const transactions = db.transactions.filter((transaction) => {
-    return transaction.userId === req.user.id && (!status || transaction.status === status);
+    return transaction.userId === req.user.id && (!status || transaction.status === status) && (!type || transaction.type === type);
+  }).sort((a, b) => {
+    return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * direction;
   });
 
-  return ok(res, clone(transactions), { count: transactions.length });
+  const { data, meta } = paginate(transactions, req, 20);
+  return ok(res, clone(data), { ...meta, status: status || null, type: type || null, order: direction === 1 ? "asc" : "desc" });
+});
+
+walletRouter.get("/portfolio/history", (req, res) => {
+  const range = typeof req.query.range === "string" ? req.query.range.toUpperCase() : "1W";
+  const allowedRanges = ["1D", "1W", "1M", "1Y"];
+  const selectedRange = allowedRanges.includes(range) ? range : "1W";
+  const currentValue = portfolioValueUsd(req.user.id);
+  const pointsByRange: Record<string, number> = { "1D": 24, "1W": 7, "1M": 30, "1Y": 12 };
+  const stepMsByRange: Record<string, number> = {
+    "1D": 60 * 60 * 1000,
+    "1W": 24 * 60 * 60 * 1000,
+    "1M": 24 * 60 * 60 * 1000,
+    "1Y": 30 * 24 * 60 * 60 * 1000
+  };
+  const points = pointsByRange[selectedRange];
+  const stepMs = stepMsByRange[selectedRange];
+  const now = Date.now();
+
+  const history = Array.from({ length: points }, (_, index) => {
+    const age = points - index - 1;
+    const wave = Math.sin(index * 0.85) * 0.035;
+    const drift = (index - points + 1) * 0.002;
+    const valueUsd = Math.max(0, currentValue * (1 + wave + drift));
+    return {
+      time: new Date(now - age * stepMs).toISOString(),
+      valueUsd: Number(valueUsd.toFixed(2))
+    };
+  });
+
+  return ok(res, history, {
+    count: history.length,
+    range: selectedRange,
+    latestValueUsd: Number(currentValue.toFixed(2))
+  });
 });
 
 walletRouter.get("/transactions/:transactionId", (req, res) => {

@@ -37,6 +37,15 @@ function feePercent(type: TradeType): number {
   return db.feeSettings.swapFeePercent;
 }
 
+function quoteResponse(quote: Quote) {
+  const expiresInSeconds = Math.max(0, Math.ceil((new Date(quote.expiresAt).getTime() - Date.now()) / 1000));
+  return {
+    ...quote,
+    expiresInSeconds,
+    isExpired: expiresInSeconds === 0
+  };
+}
+
 tradingRouter.post("/quotes", (req: Request<unknown, unknown, QuoteBody>, res) => {
   const { type, fromAsset, toAsset } = req.body;
   const fromAmount = Number(req.body.fromAmount);
@@ -70,7 +79,16 @@ tradingRouter.post("/quotes", (req: Request<unknown, unknown, QuoteBody>, res) =
   };
 
   addQuote(quote);
-  return created(res, quote);
+  return created(res, quoteResponse(quote));
+});
+
+tradingRouter.get("/quotes/:quoteId", (req, res) => {
+  const quote = db.quotes.find((item) => item.id === req.params.quoteId);
+  if (!quote) {
+    return notFound(res, "Quote was not found.", "QUOTE_NOT_FOUND");
+  }
+
+  return ok(res, quoteResponse(quote));
 });
 
 tradingRouter.post("/execute", async (req: Request<unknown, unknown, ExecuteBody>, res) => {

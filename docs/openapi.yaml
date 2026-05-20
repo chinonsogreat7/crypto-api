@@ -284,6 +284,47 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/KycResponse"
+  /auth/kyc/uploads:
+    post:
+      tags: [Auth]
+      summary: Create a demo KYC upload URL
+      description: Returns a simulated pre-signed upload URL. Mobile apps can upload first, then submit the returned publicUrl in /auth/kyc.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fileName, contentType]
+              properties:
+                fileName:
+                  type: string
+                  example: student-national-id.png
+                contentType:
+                  type: string
+                  example: image/png
+                documentKind:
+                  type: string
+                  enum: [selfie, document_front, document_back]
+                  example: document_front
+      responses:
+        "201":
+          description: Demo upload instructions
+          content:
+            application/json:
+              examples:
+                success:
+                  value:
+                    data:
+                      uploadId: upload_abc123
+                      provider: demo_local_storage
+                      storageKey: kyc/usr_student/document_front/upload_abc123-student-national-id.png
+                      uploadUrl: /storage/uploads/kyc/usr_student/document_front/upload_abc123-student-national-id.png
+                      publicUrl: /storage/files/kyc/usr_student/document_front/upload_abc123-student-national-id.png
+                      method: PUT
+                      headers:
+                        content-type: image/png
+                      expiresAt: "2026-05-20T13:10:00.000Z"
   /market/assets:
     get:
       tags: [Market]
@@ -297,6 +338,41 @@ paths:
           schema:
             type: string
           example: btc
+        - in: query
+          name: search
+          required: false
+          description: Alias for q, useful for search inputs.
+          schema:
+            type: string
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          example: 10
+        - in: query
+          name: sort
+          required: false
+          schema:
+            type: string
+            enum: [symbol, priceUsd, change24h, minBuyUsd]
+          example: priceUsd
+        - in: query
+          name: order
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+          example: desc
       responses:
         "200":
           description: Asset list
@@ -528,6 +604,128 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/WatchlistSymbolsResponse"
+  /me/price-alerts:
+    get:
+      tags: [Profile]
+      summary: List price alerts
+      responses:
+        "200":
+          description: Price alerts
+          content:
+            application/json:
+              examples:
+                success:
+                  value:
+                    data:
+                      - id: alert_btc_above
+                        userId: usr_student
+                        assetSymbol: BTC
+                        direction: above
+                        targetPriceUsd: 70000
+                        isActive: true
+                        triggeredAt: null
+                        createdAt: "2026-05-20T12:00:00.000Z"
+                        asset:
+                          symbol: BTC
+                          name: Bitcoin
+                    meta:
+                      count: 1
+                      active: 1
+    post:
+      tags: [Profile]
+      summary: Create a price alert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetSymbol, direction, targetPriceUsd]
+              properties:
+                assetSymbol:
+                  type: string
+                  example: BTC
+                direction:
+                  type: string
+                  enum: [above, below]
+                  example: above
+                targetPriceUsd:
+                  type: number
+                  example: 72000
+      responses:
+        "201":
+          description: Created price alert
+          content:
+            application/json:
+              examples:
+                success:
+                  value:
+                    data:
+                      id: alert_abc123
+                      userId: usr_student
+                      assetSymbol: BTC
+                      direction: above
+                      targetPriceUsd: 72000
+                      isActive: true
+                      triggeredAt: null
+                      createdAt: "2026-05-20T12:00:00.000Z"
+  /me/price-alerts/{alertId}:
+    patch:
+      tags: [Profile]
+      summary: Update a price alert
+      parameters:
+        - in: path
+          name: alertId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                direction:
+                  type: string
+                  enum: [above, below]
+                targetPriceUsd:
+                  type: number
+                isActive:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated price alert
+          content:
+            application/json:
+              examples:
+                success:
+                  value:
+                    data:
+                      id: alert_abc123
+                      assetSymbol: BTC
+                      direction: above
+                      targetPriceUsd: 73000
+                      isActive: false
+    delete:
+      tags: [Profile]
+      summary: Delete a price alert
+      parameters:
+        - in: path
+          name: alertId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              examples:
+                success:
+                  value:
+                    data:
+                      deleted: true
   /me/notifications:
     get:
       tags: [Profile]
@@ -582,6 +780,33 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/WalletResponse"
+  /wallet/portfolio/history:
+    get:
+      tags: [Wallet]
+      summary: Get portfolio chart history
+      parameters:
+        - in: query
+          name: range
+          required: false
+          schema:
+            type: string
+            enum: [1D, 1W, 1M, 1Y]
+          example: 1M
+      responses:
+        "200":
+          description: Portfolio chart points
+          content:
+            application/json:
+              examples:
+                success:
+                  value:
+                    data:
+                      - time: "2026-05-20T12:00:00.000Z"
+                        valueUsd: 8942.32
+                    meta:
+                      count: 30
+                      range: 1M
+                      latestValueUsd: 9011.44
   /wallet/deposit-addresses:
     get:
       tags: [Wallet]
@@ -621,6 +846,36 @@ paths:
             type: string
             enum: [pending, completed, failed, cancelled]
           example: completed
+        - in: query
+          name: type
+          required: false
+          description: Optional transaction type filter.
+          schema:
+            type: string
+            enum: [buy, sell, swap, deposit, withdrawal]
+          example: buy
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          example: 20
+        - in: query
+          name: order
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+          example: desc
       responses:
         "200":
           description: Transaction list
@@ -728,6 +983,24 @@ paths:
       responses:
         "201":
           description: Quote
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/QuoteResponse"
+  /trade/quotes/{quoteId}:
+    get:
+      tags: [Trade]
+      summary: Get quote details and expiry status
+      parameters:
+        - in: path
+          name: quoteId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Quote with countdown metadata
           content:
             application/json:
               examples:
@@ -1450,6 +1723,8 @@ components:
           rate: 3100.25
           feeAmount: 2.48
           expiresAt: "2026-05-03T14:15:30.000Z"
+          expiresInSeconds: 30
+          isExpired: false
     TradeExecutionResponse:
       summary: Executed trade
       value:

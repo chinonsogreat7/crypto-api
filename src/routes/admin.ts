@@ -41,7 +41,19 @@ adminRouter.get("/users/:userId", (req, res) => {
     user: publicUser(user),
     wallet: clone(getWallet(user.id)),
     portfolioValueUsd: Number(portfolioValueUsd(user.id).toFixed(2)),
-    transactions: clone(db.transactions.filter((txn) => txn.userId === user.id))
+    transactions: clone(db.transactions.filter((txn) => txn.userId === user.id)),
+    kycSubmissions: clone(db.kycSubmissions.filter((kyc) => kyc.userId === user.id)),
+    withdrawals: clone(db.withdrawalRequests.filter((withdrawal) => withdrawal.userId === user.id)),
+    notifications: clone(db.notifications.filter((notification) => notification.userId === user.id)),
+    priceAlerts: clone(db.priceAlerts.filter((alert) => alert.userId === user.id)),
+    deviceTokens: clone(
+      db.deviceTokens
+        .filter((deviceToken) => deviceToken.userId === user.id)
+        .map(({ expoPushToken, ...deviceToken }) => ({
+          ...deviceToken,
+          tokenEnding: expoPushToken.slice(-8)
+        }))
+    )
   });
 });
 

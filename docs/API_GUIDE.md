@@ -336,6 +336,53 @@ Use `GET /me/settings` and `PATCH /me/settings` for language, fiat currency, the
 
 Use `GET /me/notifications` to populate the notifications screen.
 
+## Data Fetching Lessons
+
+The API now includes common mobile data fetching patterns:
+
+- `GET /market/assets?page=1&limit=10&search=btc&sort=priceUsd&order=desc`
+- `GET /wallet/transactions?page=1&limit=20&type=buy&status=completed`
+- `GET /wallet/portfolio/history?range=1M`
+- `GET /trade/quotes/:quoteId`
+
+These endpoints help students practice search inputs, filters, infinite scroll, chart ranges, countdown timers, and refetching expired quote data.
+
+## Price Alerts
+
+Students can build a price-alert form and list screen:
+
+```http
+POST /me/price-alerts
+Authorization: Bearer demo-user-token
+Content-Type: application/json
+
+{
+  "assetSymbol": "BTC",
+  "direction": "above",
+  "targetPriceUsd": 72000
+}
+```
+
+Use `GET /me/price-alerts`, `PATCH /me/price-alerts/:alertId`, and `DELETE /me/price-alerts/:alertId` for the rest of the CRUD flow.
+
+## KYC Upload Storage
+
+For classroom use, KYC uploads are simulated with a storage URL flow:
+
+```http
+POST /auth/kyc/uploads
+Authorization: Bearer demo-user-token
+Content-Type: application/json
+
+{
+  "fileName": "student-national-id.png",
+  "contentType": "image/png",
+  "documentKind": "document_front"
+}
+```
+
+The response returns a demo `uploadUrl` and `publicUrl`. In the mobile app, students can learn the production pattern: request an upload URL, upload the file, then submit the returned `publicUrl` in `POST /auth/kyc`.
+
 ## Admin Responsibilities
 
 The admin API is not just an extra feature. It helps students understand how fintech products are operated after users start transacting.
@@ -360,6 +407,8 @@ The following are intentionally simulated:
 - trades
 - withdrawals
 - KYC verification
+- KYC file storage
+- price alert triggers
 - notifications
 
 In production, these would connect to providers such as custody services, blockchain RPC/indexing providers, KYC vendors, payment providers, and internal risk systems.

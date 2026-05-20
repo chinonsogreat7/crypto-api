@@ -1,6 +1,7 @@
 import express, { type Request } from "express";
 import { clone, createId, db, publicUser } from "../data/store";
 import { requireAuth } from "../middleware/auth";
+import { createKycUpload, type KycUploadRequest } from "../services/storage";
 import { generateTotpSecret, otpauthUri, verifyTotpCode } from "../services/totp";
 import type { KycSubmission, User } from "../models";
 import { badRequest, created, ok } from "../utils/http";
@@ -245,6 +246,15 @@ authRouter.post("/otp/verify", (req: Request<unknown, unknown, VerifyOtpBody>, r
   }
 
   return ok(res, { verified: true });
+});
+
+authRouter.post("/kyc/uploads", requireAuth, (req: Request<unknown, unknown, KycUploadRequest>, res) => {
+  const upload = createKycUpload(req.user.id, req.body);
+  if (!upload) {
+    return badRequest(res, "fileName and contentType are required.");
+  }
+
+  return created(res, upload);
 });
 
 authRouter.post("/kyc", (req: Request<unknown, unknown, KycBody>, res) => {

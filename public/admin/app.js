@@ -10,7 +10,10 @@ const state = {
   assets: [],
   previousPrices: {},
   market: null,
-  fees: null
+  fees: null,
+  selectedUserId: null,
+  selectedUserDetails: null,
+  selectedUserLoading: false
 };
 
 const titleByView = {
@@ -112,6 +115,22 @@ function safe(text) {
 
 function statusChip(status) {
   return `<span class="status ${safe(status)}">${safe(String(status).replaceAll("_", " "))}</span>`;
+}
+
+function yesNo(value) {
+  return value ? "Yes" : "No";
+}
+
+function emptyMessage(message) {
+  return `<p class="empty-state">${safe(message)}</p>`;
+}
+
+function detailField(label, value) {
+  return `<div class="detail-field"><span>${safe(label)}</span><strong>${safe(value ?? "Not provided")}</strong></div>`;
+}
+
+function assetAmount(value, symbol) {
+  return `${number(value, symbol === "USD" || symbol === "NGN" ? 2 : 8)} ${safe(symbol)}`;
 }
 
 function showAlert(message, type = "info") {
@@ -233,15 +252,309 @@ function renderOverview() {
 function renderUsers() {
   document.querySelector("#users-table").innerHTML = state.users
     .map((user) => {
-      return `<tr>
+      const selected = state.selectedUserId === user.id ? " selected-row" : "";
+      return `<tr class="${selected}">
         <td><strong>${safe(user.fullName)}</strong></td>
         <td>${safe(user.email)}</td>
         <td>${safe(user.phone)}</td>
         <td>${statusChip(user.kycStatus)}</td>
         <td>${date(user.createdAt)}</td>
+        <td class="actions-cell">
+          <button class="table-button" data-action="view-user" data-id="${safe(user.id)}" type="button">View</button>
+        </td>
       </tr>`;
     })
     .join("");
+  renderUserDetails();
+}
+
+function renderUserDetailTransactions(transactions) {
+  if (!transactions.length) return emptyMessage("No transactions yet.");
+  return `<div class="detail-table-wrap">
+    <table class="compact-table">
+      <thead>
+        <tr>
+          <th>Reference</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>From</th>
+          <th>To</th>
+          <th>Fee</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${transactions
+          .map(
+            (item) => `<tr>
+              <td class="mono">${safe(item.reference)}</td>
+              <td>${safe(item.type)}</td>
+              <td>${statusChip(item.status)}</td>
+              <td>${assetAmount(item.fromAmount, item.fromAsset)}</td>
+              <td>${assetAmount(item.toAmount, item.toAsset)}</td>
+              <td>${money(item.feeAmount)}</td>
+              <td>${date(item.createdAt)}</td>
+            </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function renderUserDetailKyc(items) {
+  if (!items.length) return emptyMessage("No KYC submission on file.");
+  return items
+    .map((item) => {
+      const selfie = item.selfieImageUrl
+        ? `<a class="inline-link" href="${safe(item.selfieImageUrl)}" target="_blank" rel="noreferrer">Selfie</a>`
+        : `<span class="muted">No selfie</span>`;
+      const documentImage = item.documentImageUrl
+        ? `<a class="inline-link" href="${safe(item.documentImageUrl)}" target="_blank" rel="noreferrer">Document image</a>`
+        : `<span class="muted">No document image</span>`;
+
+      return `<article class="mini-card">
+        <div class="mini-card-header">
+          <strong>${safe(item.legalName)}</strong>
+          ${statusChip(item.status)}
+        </div>
+        <div class="detail-grid">
+          ${detailField("Country", item.country)}
+          ${detailField("Document", `${item.documentType} ${item.documentNumber}`)}
+          ${detailField("Submitted", date(item.submittedAt))}
+          ${detailField("Reviewed", date(item.reviewedAt))}
+          ${detailField("Reviewer note", item.reviewerNote || "None")}
+        </div>
+        <div class="link-row">${selfie}${documentImage}</div>
+      </article>`;
+    })
+    .join("");
+}
+
+function renderUserDetailBalances(wallet) {
+  const balances = wallet?.balances || [];
+  if (!balances.length) return emptyMessage("No wallet balances yet.");
+  return `<div class="detail-table-wrap">
+    <table class="compact-table">
+      <thead>
+        <tr>
+          <th>Asset</th>
+          <th>Available</th>
+          <th>Locked</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${balances
+          .map(
+            (balance) => `<tr>
+              <td><strong>${safe(balance.assetSymbol)}</strong></td>
+              <td>${number(balance.available, balance.assetSymbol === "USD" || balance.assetSymbol === "NGN" ? 2 : 8)}</td>
+              <td>${number(balance.locked, balance.assetSymbol === "USD" || balance.assetSymbol === "NGN" ? 2 : 8)}</td>
+            </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function renderUserDetailAddresses(wallet) {
+  const addresses = wallet?.depositAddresses || [];
+  if (!addresses.length) return emptyMessage("No deposit addresses yet.");
+  return addresses
+    .map(
+      (address) => `<article class="mini-card">
+        <div class="mini-card-header">
+          <strong>${safe(address.assetSymbol)}</strong>
+          <span class="muted">${safe(address.network)}</span>
+        </div>
+        <p class="mono break-text">${safe(address.address)}</p>
+      </article>`
+    )
+    .join("");
+}
+
+function renderUserDetailWithdrawals(withdrawals) {
+  if (!withdrawals.length) return emptyMessage("No withdrawal requests.");
+  return `<div class="detail-table-wrap">
+    <table class="compact-table">
+      <thead>
+        <tr>
+          <th>Asset</th>
+          <th>Amount</th>
+          <th>Network</th>
+          <th>Status</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${withdrawals
+          .map(
+            (item) => `<tr>
+              <td><strong>${safe(item.assetSymbol)}</strong></td>
+              <td>${number(item.amount, 8)} <span class="muted">fee ${number(item.feeAssetAmount, 8)}</span></td>
+              <td>${safe(item.network)}</td>
+              <td>${statusChip(item.status)}</td>
+              <td>${date(item.createdAt)}</td>
+            </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function renderUserDetailNotifications(notifications) {
+  if (!notifications.length) return emptyMessage("No notifications.");
+  return notifications
+    .map(
+      (item) => `<article class="mini-card">
+        <div class="mini-card-header">
+          <strong>${safe(item.title)}</strong>
+          ${statusChip(item.isRead ? "read" : "unread")}
+        </div>
+        <p>${safe(item.body)}</p>
+        <span class="muted">${safe(item.type)} · ${date(item.createdAt)}</span>
+      </article>`
+    )
+    .join("");
+}
+
+function renderUserDetailPriceAlerts(alerts) {
+  if (!alerts.length) return emptyMessage("No price alerts.");
+  return alerts
+    .map(
+      (item) => `<article class="mini-card">
+        <div class="mini-card-header">
+          <strong>${safe(item.assetSymbol)} ${safe(item.direction)} ${money(item.targetPriceUsd)}</strong>
+          ${statusChip(item.isActive ? "active" : "inactive")}
+        </div>
+        <span class="muted">Created ${date(item.createdAt)} · Triggered ${date(item.triggeredAt)}</span>
+      </article>`
+    )
+    .join("");
+}
+
+function renderUserDetailDevices(devices) {
+  if (!devices.length) return emptyMessage("No registered devices.");
+  return devices
+    .map(
+      (item) => `<article class="mini-card">
+        <div class="mini-card-header">
+          <strong>${safe(item.platform)}</strong>
+          <span class="mono">...${safe(item.tokenEnding)}</span>
+        </div>
+        <span class="muted">Created ${date(item.createdAt)} · Last seen ${date(item.lastSeenAt)}</span>
+      </article>`
+    )
+    .join("");
+}
+
+function renderUserDetails() {
+  const panel = document.querySelector("#user-detail-panel");
+  if (!state.selectedUserId) {
+    panel.classList.add("hidden");
+    panel.innerHTML = "";
+    return;
+  }
+
+  panel.classList.remove("hidden");
+  if (state.selectedUserLoading) {
+    panel.innerHTML = `<div class="detail-loading">Loading user details...</div>`;
+    return;
+  }
+
+  const details = state.selectedUserDetails;
+  if (!details) {
+    panel.innerHTML = `<div class="detail-loading">Select a user to view their details.</div>`;
+    return;
+  }
+
+  const user = details.user;
+  const watchlist = user.watchlist?.length ? user.watchlist.join(", ") : "None";
+  const activeAlerts = details.priceAlerts?.filter((alert) => alert.isActive).length || 0;
+  const devices = details.deviceTokens?.length || 0;
+
+  panel.innerHTML = `<div class="detail-header">
+    <div>
+      <p class="eyebrow">Single User</p>
+      <h3>${safe(user.fullName)}</h3>
+      <p>${safe(user.email)} · ${safe(user.phone)}</p>
+    </div>
+    <button class="secondary-button" data-action="close-user" type="button">Close</button>
+  </div>
+
+  <div class="detail-summary">
+    <article class="summary-tile"><span>Portfolio</span><strong>${money(details.portfolioValueUsd)}</strong></article>
+    <article class="summary-tile"><span>KYC</span><strong>${safe(user.kycStatus.replaceAll("_", " "))}</strong></article>
+    <article class="summary-tile"><span>Transactions</span><strong>${details.transactions.length}</strong></article>
+    <article class="summary-tile"><span>Active alerts</span><strong>${activeAlerts}</strong></article>
+  </div>
+
+  <div class="detail-section-grid">
+    <section class="detail-section">
+      <h4>Account</h4>
+      <div class="detail-grid">
+        ${detailField("User ID", user.id)}
+        ${detailField("Role", user.role)}
+        ${detailField("Created", date(user.createdAt))}
+        ${detailField("Avatar URL", user.avatarUrl || "None")}
+        ${detailField("Watchlist", watchlist)}
+      </div>
+    </section>
+    <section class="detail-section">
+      <h4>Security & Settings</h4>
+      <div class="detail-grid">
+        ${detailField("2FA enabled", yesNo(user.twoFactorEnabled))}
+        ${detailField("Fiat currency", user.settings?.fiatCurrency)}
+        ${detailField("Theme", user.settings?.theme)}
+        ${detailField("Price alerts", yesNo(user.settings?.priceAlerts))}
+        ${detailField("Push notifications", yesNo(user.settings?.pushNotifications))}
+        ${detailField("Biometric login", yesNo(user.settings?.biometricEnabled))}
+        ${detailField("Registered devices", devices)}
+      </div>
+    </section>
+  </div>
+
+  <section class="detail-section">
+    <h4>Wallet Balances</h4>
+    ${renderUserDetailBalances(details.wallet)}
+  </section>
+
+  <section class="detail-section">
+    <h4>Deposit Addresses</h4>
+    <div class="mini-card-grid">${renderUserDetailAddresses(details.wallet)}</div>
+  </section>
+
+  <section class="detail-section">
+    <h4>KYC Submissions</h4>
+    <div class="mini-card-grid">${renderUserDetailKyc(details.kycSubmissions || [])}</div>
+  </section>
+
+  <section class="detail-section">
+    <h4>Withdrawals</h4>
+    ${renderUserDetailWithdrawals(details.withdrawals || [])}
+  </section>
+
+  <section class="detail-section">
+    <h4>Recent Transactions</h4>
+    ${renderUserDetailTransactions(details.transactions || [])}
+  </section>
+
+  <section class="detail-section">
+    <h4>Recent Notifications</h4>
+    <div class="mini-card-grid">${renderUserDetailNotifications(details.notifications || [])}</div>
+  </section>
+
+  <section class="detail-section">
+    <h4>Price Alerts</h4>
+    <div class="mini-card-grid">${renderUserDetailPriceAlerts(details.priceAlerts || [])}</div>
+  </section>
+
+  <section class="detail-section">
+    <h4>Registered Devices</h4>
+    <div class="mini-card-grid">${renderUserDetailDevices(details.deviceTokens || [])}</div>
+  </section>`;
 }
 
 function renderKyc() {
@@ -390,6 +703,27 @@ async function updateAssetStatus(symbol, isActive) {
   await loadAssets();
 }
 
+async function loadUserDetails(userId) {
+  state.selectedUserId = userId;
+  state.selectedUserDetails = null;
+  state.selectedUserLoading = true;
+  renderUsers();
+
+  try {
+    state.selectedUserDetails = await api(`/admin/users/${encodeURIComponent(userId)}`);
+  } finally {
+    state.selectedUserLoading = false;
+    renderUsers();
+  }
+}
+
+function closeUserDetails() {
+  state.selectedUserId = null;
+  state.selectedUserDetails = null;
+  state.selectedUserLoading = false;
+  renderUsers();
+}
+
 document.querySelectorAll(".nav-item").forEach((button) => {
   button.addEventListener("click", () => setView(button.dataset.view));
 });
@@ -445,6 +779,12 @@ document.body.addEventListener("click", async (event) => {
     }
     if (target.dataset.action === "asset-status") {
       await updateAssetStatus(target.dataset.symbol, target.dataset.active === "true");
+    }
+    if (target.dataset.action === "view-user") {
+      await loadUserDetails(target.dataset.id);
+    }
+    if (target.dataset.action === "close-user") {
+      closeUserDetails();
     }
   } catch (error) {
     showAlert(error.message, "error");

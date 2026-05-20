@@ -139,6 +139,17 @@ export interface KycSubmission {
   reviewerNote: string | null;
 }
 
+export interface PriceAlert {
+  id: string;
+  userId: string;
+  assetSymbol: AssetSymbol;
+  direction: "above" | "below";
+  targetPriceUsd: number;
+  isActive: boolean;
+  triggeredAt: string | null;
+  createdAt: string;
+}
+
 export interface WithdrawalRequest {
   id: string;
   userId: string;
@@ -189,6 +200,7 @@ export interface Database {
   withdrawalRequests: WithdrawalRequest[];
   notifications: Notification[];
   deviceTokens: DeviceToken[];
+  priceAlerts: PriceAlert[];
   twoFactorChallenges: TwoFactorChallenge[];
   feeSettings: FeeSettings;
 }

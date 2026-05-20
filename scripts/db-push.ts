@@ -152,6 +152,18 @@ CREATE TABLE IF NOT EXISTS "DeviceToken" (
   FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS "PriceAlert" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "userId" TEXT NOT NULL,
+  "assetSymbol" TEXT NOT NULL,
+  "direction" TEXT NOT NULL,
+  "targetPriceUsd" REAL NOT NULL,
+  "isActive" BOOLEAN NOT NULL,
+  "triggeredAt" DATETIME,
+  "createdAt" DATETIME NOT NULL,
+  FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS "FeeSettings" (
   "id" TEXT NOT NULL PRIMARY KEY,
   "buyFeePercent" REAL NOT NULL,

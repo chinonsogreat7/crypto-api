@@ -3,6 +3,7 @@ import type {
   Database,
   FiatCurrency,
   KycStatus,
+  PriceAlert,
   TransactionStatus,
   TransactionType,
   UserRole,
@@ -56,6 +57,7 @@ export async function loadDatabase(): Promise<Database> {
     withdrawalRequests,
     notifications,
     deviceTokens,
+    priceAlerts,
     feeSettings
   ] = await Promise.all([
     prisma.user.findMany({ orderBy: { createdAt: "asc" } }),
@@ -71,6 +73,7 @@ export async function loadDatabase(): Promise<Database> {
     prisma.withdrawalRequest.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.notification.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.deviceToken.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.priceAlert.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.feeSettings.findUnique({ where: { id: "default" } })
   ]);
 
@@ -183,6 +186,16 @@ export async function loadDatabase(): Promise<Database> {
       createdAt: deviceToken.createdAt.toISOString(),
       lastSeenAt: deviceToken.lastSeenAt.toISOString()
     })),
+    priceAlerts: priceAlerts.map((alert) => ({
+      id: alert.id,
+      userId: alert.userId,
+      assetSymbol: alert.assetSymbol as PriceAlert["assetSymbol"],
+      direction: alert.direction as PriceAlert["direction"],
+      targetPriceUsd: alert.targetPriceUsd,
+      isActive: alert.isActive,
+      triggeredAt: toIso(alert.triggeredAt),
+      createdAt: alert.createdAt.toISOString()
+    })),
     twoFactorChallenges: [],
     feeSettings: feeSettings
       ? {
@@ -222,6 +235,7 @@ async function drainPendingSaves(): Promise<void> {
 export async function saveDatabase(data: Database): Promise<void> {
   await prisma.$transaction(async (tx) => {
     await tx.notification.deleteMany();
+    await tx.priceAlert.deleteMany();
     await tx.withdrawalRequest.deleteMany();
     await tx.kycSubmission.deleteMany();
     await tx.transaction.deleteMany();
@@ -343,6 +357,16 @@ export async function saveDatabase(data: Database): Promise<void> {
           ...deviceToken,
           createdAt: new Date(deviceToken.createdAt),
           lastSeenAt: new Date(deviceToken.lastSeenAt)
+        }
+      });
+    }
+
+    for (const alert of data.priceAlerts) {
+      await tx.priceAlert.create({
+        data: {
+          ...alert,
+          triggeredAt: toDate(alert.triggeredAt),
+          createdAt: new Date(alert.createdAt)
         }
       });
     }

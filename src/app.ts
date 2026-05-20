@@ -66,6 +66,26 @@ export function createApp() {
     res.redirect("/admin-ui/");
   });
 
+  app.put<{ 0: string }>("/storage/uploads/*", express.raw({ type: "*/*", limit: "5mb" }), (req, res) => {
+    res.status(201).json({
+      data: {
+        uploaded: true,
+        storageKey: req.params[0],
+        sizeBytes: Buffer.isBuffer(req.body) ? req.body.length : 0
+      }
+    });
+  });
+
+  app.get<{ 0: string }>("/storage/files/*", (req, res) => {
+    res.json({
+      data: {
+        storageKey: req.params[0],
+        url: req.originalUrl,
+        note: "Demo storage metadata. Replace this with S3, Cloudinary, or Supabase Storage in production."
+      }
+    });
+  });
+
   app.use("/auth", authRouter);
   app.use("/me", meRouter);
   app.use("/market", marketRouter);

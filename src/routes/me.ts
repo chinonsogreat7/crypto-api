@@ -1,9 +1,9 @@
 import express, { type Request } from "express";
-import { clone, db, publicUser } from "../data/store";
+import { clone, createId, db, publicUser } from "../data/store";
 import { requireAuth } from "../middleware/auth";
 import { isExpoPushToken, registerDeviceToken } from "../services/notifications";
-import type { AssetSymbol, DeviceToken, PublicUser, UserSettings } from "../models";
-import { badRequest, notFound, ok } from "../utils/http";
+import type { AssetSymbol, DeviceToken, PriceAlert, PublicUser, UserSettings } from "../models";
+import { badRequest, created, notFound, ok } from "../utils/http";
 
 export const meRouter = express.Router();
 
@@ -12,6 +12,7 @@ meRouter.use(requireAuth);
 type ProfileBody = Partial<Pick<PublicUser, "fullName" | "phone" | "avatarUrl">>;
 type SettingsBody = Partial<UserSettings>;
 type DeviceBody = Pick<DeviceToken, "expoPushToken" | "platform">;
+type PriceAlertBody = Partial<Pick<PriceAlert, "assetSymbol" | "direction" | "targetPriceUsd" | "isActive">>;
 
 meRouter.get("/", (req, res) => {
   return ok(res, req.publicUser);
@@ -101,6 +102,85 @@ meRouter.post("/watchlist/:symbol", (req: Request<{ symbol: AssetSymbol }>, res)
 meRouter.delete("/watchlist/:symbol", (req: Request<{ symbol: AssetSymbol }>, res) => {
   req.user.watchlist = req.user.watchlist.filter((symbol) => symbol !== req.params.symbol);
   return ok(res, clone(req.user.watchlist));
+});
+
+meRouter.get("/price-alerts", (req, res) => {
+  const alerts = db.priceAlerts
+    .filter((alert) => alert.userId === req.user.id)
+    .map((alert) => ({
+      ...alert,
+      asset: db.assets.find((asset) => asset.symbol === alert.assetSymbol) || null
+    }));
+
+  return ok(res, clone(alerts), {
+    count: alerts.length,
+    active: alerts.filter((alert) => alert.isActive).length
+  });
+});
+
+meRouter.post("/price-alerts", (req: Request<unknown, unknown, PriceAlertBody>, res) => {
+  const { assetSymbol, direction } = req.body;
+  const targetPriceUsd = Number(req.body.targetPriceUsd);
+  if (!assetSymbol || !direction || !["above", "below"].includes(direction) || !Number.isFinite(targetPriceUsd) || targetPriceUsd <= 0) {
+    return badRequest(res, "assetSymbol, direction, and targetPriceUsd are required.");
+  }
+
+  if (!db.assets.some((asset) => asset.symbol === assetSymbol && asset.isActive)) {
+    return notFound(res, "Asset was not found.", "ASSET_NOT_FOUND");
+  }
+
+  const alert: PriceAlert = {
+    id: createId("alert"),
+    userId: req.user.id,
+    assetSymbol,
+    direction,
+    targetPriceUsd,
+    isActive: true,
+    triggeredAt: null,
+    createdAt: new Date().toISOString()
+  };
+  db.priceAlerts.unshift(alert);
+
+  return created(res, clone(alert));
+});
+
+meRouter.patch("/price-alerts/:alertId", (req: Request<{ alertId: string }, unknown, PriceAlertBody>, res) => {
+  const alert = db.priceAlerts.find((item) => item.id === req.params.alertId && item.userId === req.user.id);
+  if (!alert) {
+    return notFound(res, "Price alert was not found.", "PRICE_ALERT_NOT_FOUND");
+  }
+
+  if (req.body.direction !== undefined) {
+    if (!["above", "below"].includes(req.body.direction)) {
+      return badRequest(res, "direction must be above or below.");
+    }
+    alert.direction = req.body.direction;
+  }
+
+  if (req.body.targetPriceUsd !== undefined) {
+    const targetPriceUsd = Number(req.body.targetPriceUsd);
+    if (!Number.isFinite(targetPriceUsd) || targetPriceUsd <= 0) {
+      return badRequest(res, "targetPriceUsd must be greater than zero.");
+    }
+    alert.targetPriceUsd = targetPriceUsd;
+    alert.triggeredAt = null;
+  }
+
+  if (req.body.isActive !== undefined) {
+    alert.isActive = Boolean(req.body.isActive);
+  }
+
+  return ok(res, clone(alert));
+});
+
+meRouter.delete("/price-alerts/:alertId", (req: Request<{ alertId: string }>, res) => {
+  const before = db.priceAlerts.length;
+  db.priceAlerts = db.priceAlerts.filter((item) => !(item.id === req.params.alertId && item.userId === req.user.id));
+  if (db.priceAlerts.length === before) {
+    return notFound(res, "Price alert was not found.", "PRICE_ALERT_NOT_FOUND");
+  }
+
+  return ok(res, { deleted: true });
 });
 
 meRouter.get("/notifications", (req, res) => {

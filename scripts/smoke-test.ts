@@ -69,6 +69,7 @@ async function main() {
     });
 
     await request("/market/assets");
+    await request("/market/assets?page=1&limit=5&search=bit&sort=priceUsd&order=desc");
     await request("/market/prices");
     await request("/market/trending");
     await request("/me", { headers: userHeaders });
@@ -82,9 +83,40 @@ async function main() {
       })
     });
     await request("/me/watchlist", { headers: userHeaders });
+    const alertBody = await request("/me/price-alerts", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ assetSymbol: "BTC", direction: "above", targetPriceUsd: 72000 })
+    });
+    await request("/me/price-alerts", { headers: userHeaders });
+    await request(`/me/price-alerts/${alertBody.data.id}`, {
+      method: "PATCH",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ targetPriceUsd: 73000, isActive: false })
+    });
+    await request(`/me/price-alerts/${alertBody.data.id}`, {
+      method: "DELETE",
+      headers: userHeaders
+    });
     await request("/me/notifications", { headers: userHeaders });
     await request("/wallet", { headers: userHeaders });
+    await request("/wallet/portfolio/history?range=1M", { headers: userHeaders });
     await request("/wallet/deposit-addresses/USDC", { headers: userHeaders });
+    const uploadBody = await request("/auth/kyc/uploads", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({
+        fileName: "student-national-id.png",
+        contentType: "image/png",
+        documentKind: "document_front"
+      })
+    });
+    await request(uploadBody.data.uploadUrl, {
+      method: "PUT",
+      headers: { "content-type": "image/png" },
+      body: "demo image bytes"
+    });
+    await request(uploadBody.data.publicUrl);
     await requestText("/admin-ui/");
     await request("/admin/dashboard", { headers: adminHeaders });
     await request("/admin/fees", { headers: adminHeaders });
@@ -118,6 +150,7 @@ async function main() {
       headers: { ...userHeaders, "content-type": "application/json" },
       body: JSON.stringify({ type: "buy", fromAsset: "USD", toAsset: "USDC", fromAmount: 50 })
     });
+    await request(`/trade/quotes/${quoteBody.data.id}`, { headers: userHeaders });
 
     await request("/trade/execute", {
       method: "POST",
@@ -125,7 +158,7 @@ async function main() {
       body: JSON.stringify({ quoteId: quoteBody.data.id, pin: "1234" })
     });
 
-    await request("/wallet/transactions", { headers: userHeaders });
+    await request("/wallet/transactions?page=1&limit=10&type=buy&status=completed", { headers: userHeaders });
     console.log("Smoke test passed.");
   } finally {
     server.close();

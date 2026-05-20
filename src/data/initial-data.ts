@@ -330,6 +330,18 @@ export const initialData: Database = {
     }
   ],
   deviceTokens: [],
+  priceAlerts: [
+    {
+      id: "alert_btc_above",
+      userId: "usr_student",
+      assetSymbol: "BTC",
+      direction: "above",
+      targetPriceUsd: 70000,
+      isActive: true,
+      triggeredAt: null,
+      createdAt: now
+    }
+  ],
   twoFactorChallenges: [],
   feeSettings: {
     buyFeePercent: 1,
