@@ -3,7 +3,7 @@ import { clone, createId, db, publicUser } from "../data/store";
 import { requireAuth } from "../middleware/auth";
 import { isExpoPushToken, registerDeviceToken } from "../services/notifications";
 import { evaluatePriceAlerts } from "../services/price-alerts";
-import type { AssetSymbol, DeviceToken, PriceAlert, PublicUser, UserSettings } from "../models";
+import { SUPPORTED_FIAT_CURRENCIES, type AssetSymbol, type DeviceToken, type PriceAlert, type PublicUser, type UserSettings } from "../models";
 import { badRequest, created, notFound, ok } from "../utils/http";
 import {
   isAssetSymbol,
@@ -76,11 +76,6 @@ meRouter.patch("/settings", (req: Request<unknown, unknown, SettingsBody>, res) 
     nextSettings.theme = req.body.theme;
   }
 
-  if (req.body.priceAlerts !== undefined) {
-    if (!isBoolean(req.body.priceAlerts)) return badRequest(res, "priceAlerts must be true or false.", "INVALID_PRICE_ALERTS_SETTING");
-    nextSettings.priceAlerts = req.body.priceAlerts;
-  }
-
   if (req.body.pushNotifications !== undefined) {
     if (!isBoolean(req.body.pushNotifications)) return badRequest(res, "pushNotifications must be true or false.", "INVALID_PUSH_SETTING");
     nextSettings.pushNotifications = req.body.pushNotifications;
@@ -92,8 +87,8 @@ meRouter.patch("/settings", (req: Request<unknown, unknown, SettingsBody>, res) 
   }
 
   if (req.body.fiatCurrency !== undefined) {
-    if (!isEnumValue(req.body.fiatCurrency, ["USD", "NGN"] as const)) {
-      return badRequest(res, "fiatCurrency must be USD or NGN.", "INVALID_FIAT_CURRENCY");
+    if (!isEnumValue(req.body.fiatCurrency, SUPPORTED_FIAT_CURRENCIES)) {
+      return badRequest(res, `fiatCurrency must be one of ${SUPPORTED_FIAT_CURRENCIES.join(", ")}.`, "INVALID_FIAT_CURRENCY");
     }
     nextSettings.fiatCurrency = req.body.fiatCurrency;
   }

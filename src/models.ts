@@ -1,4 +1,5 @@
-export type FiatCurrency = "USD" | "NGN";
+export const SUPPORTED_FIAT_CURRENCIES = ["USD", "NGN", "EUR", "GBP", "CAD", "AUD", "JPY", "CHF"] as const;
+export type FiatCurrency = (typeof SUPPORTED_FIAT_CURRENCIES)[number];
 export type AssetSymbol =
   | "BTC"
   | "ETH"
@@ -61,7 +62,6 @@ export interface UserSettings {
   language: "en";
   fiatCurrency: FiatCurrency;
   theme: "system" | "light" | "dark";
-  priceAlerts: boolean;
   pushNotifications: boolean;
   biometricEnabled: boolean;
 }

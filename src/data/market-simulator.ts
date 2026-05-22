@@ -4,7 +4,7 @@ import { evaluatePriceAlerts } from "../services/price-alerts";
 
 const TICK_INTERVAL_MS = Number(process.env.MARKET_TICK_INTERVAL_MS || 10000);
 const MAX_HISTORY_POINTS = 48;
-const STABLE_COINS = new Set(["USDC"]);
+const STABLE_COINS = new Set(["USDC", "USDT"]);
 
 interface MarketPoint {
   time: string;

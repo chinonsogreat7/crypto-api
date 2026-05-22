@@ -155,6 +155,11 @@ async function main() {
       headers: { ...userHeaders, "content-type": "application/json" },
       body: JSON.stringify({ pushNotifications: "yes" })
     }, "invalid settings boolean");
+    await request("/me/settings", {
+      method: "PATCH",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ fiatCurrency: "EUR" })
+    });
     await request("/me/devices", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
@@ -194,8 +199,14 @@ async function main() {
       headers: userHeaders
     });
     await request("/me/notifications", { headers: userHeaders });
-    await request("/wallet", { headers: userHeaders });
-    await request("/wallet/portfolio/history?range=1M", { headers: userHeaders });
+    const walletBody = await request("/wallet", { headers: userHeaders });
+    if (walletBody.data.portfolioCurrency !== "EUR" || typeof walletBody.data.portfolioValue !== "number") {
+      throw new Error("wallet did not return portfolio value in selected fiat currency");
+    }
+    const portfolioHistoryBody = await request("/wallet/portfolio/history?range=1M", { headers: userHeaders });
+    if (portfolioHistoryBody.meta.currency !== "EUR" || typeof portfolioHistoryBody.meta.latestValue !== "number") {
+      throw new Error("portfolio history did not return selected fiat currency metadata");
+    }
     await request("/wallet/deposit-addresses/USDC", { headers: userHeaders });
     const uploadBody = await request("/auth/kyc/uploads", {
       method: "POST",
@@ -276,19 +287,21 @@ async function main() {
       headers: { ...userHeaders, "content-type": "application/json" },
       body: JSON.stringify({ amount: 500, settlementDelaySeconds: 1 })
     });
+    await request("/admin/deposits?page=1&limit=10&status=pending", { headers: adminHeaders });
     await request(depositBody.data.pollingUrl, { headers: userHeaders });
     await wait(1200);
     await request(depositBody.data.pollingUrl, { headers: userHeaders });
+    await request("/admin/deposits?page=1&limit=10&status=completed", { headers: adminHeaders });
 
     await expectBadRequest("/trade/quotes", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
-      body: JSON.stringify({ type: "buy", fromAsset: "USD", toAsset: "USDC", fromAmount: "50" })
+      body: JSON.stringify({ type: "buy", fromAsset: "USDT", toAsset: "BTC", fromAmount: "50" })
     }, "invalid quote amount");
     const quoteBody = await request("/trade/quotes", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
-      body: JSON.stringify({ type: "buy", fromAsset: "USD", toAsset: "USDC", fromAmount: 50 })
+      body: JSON.stringify({ type: "buy", fromAsset: "USDT", toAsset: "BTC", fromAmount: 50 })
     });
     await request(`/trade/quotes/${quoteBody.data.id}`, { headers: userHeaders });
 

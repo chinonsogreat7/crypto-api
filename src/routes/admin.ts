@@ -1,5 +1,5 @@
 import express, { type Request } from "express";
-import { clone, createId, db, findBalance, getWallet, portfolioValueUsd, publicUser } from "../data/store";
+import { clone, convertUsdToFiat, createId, db, findBalance, getWallet, portfolioValueUsd, publicUser } from "../data/store";
 import { marketMeta } from "../data/market-simulator";
 import { requireAdmin, requireAuth } from "../middleware/auth";
 import { writeAuditLog } from "../services/audit";
@@ -85,10 +85,14 @@ adminRouter.get("/users/:userId", (req, res) => {
     return notFound(res, "User was not found.", "USER_NOT_FOUND");
   }
 
+  const currentValueUsd = portfolioValueUsd(user.id);
+  const portfolioCurrency = user.settings.fiatCurrency;
   return ok(res, {
     user: publicUser(user),
     wallet: clone(getWallet(user.id)),
-    portfolioValueUsd: Number(portfolioValueUsd(user.id).toFixed(2)),
+    portfolioValueUsd: Number(currentValueUsd.toFixed(2)),
+    portfolioValue: Number(convertUsdToFiat(currentValueUsd, portfolioCurrency).toFixed(2)),
+    portfolioCurrency,
     transactions: clone(db.transactions.filter((txn) => txn.userId === user.id)),
     kycSubmissions: clone(db.kycSubmissions.filter((kyc) => kyc.userId === user.id)),
     withdrawals: clone(db.withdrawalRequests.filter((withdrawal) => withdrawal.userId === user.id)),
@@ -178,6 +182,21 @@ adminRouter.get("/transactions", (req, res) => {
     .filter((txn) => !type || txn.type === (type as TransactionType))
     .filter((txn) => matchesSearch(q, [txn.id, txn.userId, txn.type, txn.status, txn.fromAsset, txn.toAsset, txn.reference, txn.note]));
   const { data, meta } = listResponse(req, clone(transactions), { query: q, status, type });
+  return ok(res, data, meta);
+});
+
+adminRouter.get("/deposits", (req, res) => {
+  const q = stringQuery(req, "q");
+  const status = stringQuery(req, "status");
+  if (status && !isEnumValue(status, ["pending", "completed", "failed", "cancelled", "requires_review"] as const)) {
+    return badRequest(res, "status must be pending, completed, failed, cancelled, or requires_review.", "INVALID_TRANSACTION_STATUS");
+  }
+
+  const deposits = db.transactions
+    .filter((txn) => txn.type === "deposit")
+    .filter((txn) => !status || txn.status === (status as TransactionStatus))
+    .filter((txn) => matchesSearch(q, [txn.id, txn.userId, txn.status, txn.fromAsset, txn.toAsset, txn.reference, txn.note]));
+  const { data, meta } = listResponse(req, clone(deposits), { query: q, status, type: "deposit" });
   return ok(res, data, meta);
 });
 

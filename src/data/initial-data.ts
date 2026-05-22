@@ -22,7 +22,6 @@ export const initialData: Database = {
         language: "en",
         fiatCurrency: "USD",
         theme: "system",
-        priceAlerts: true,
         pushNotifications: true,
         biometricEnabled: false
       },
@@ -46,7 +45,6 @@ export const initialData: Database = {
         language: "en",
         fiatCurrency: "USD",
         theme: "dark",
-        priceAlerts: false,
         pushNotifications: false,
         biometricEnabled: false
       },

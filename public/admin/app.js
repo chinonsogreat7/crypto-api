@@ -5,6 +5,7 @@ const state = {
   dashboard: null,
   users: [],
   kyc: [],
+  deposits: [],
   withdrawals: [],
   transactions: [],
   assets: [],
@@ -18,6 +19,7 @@ const state = {
   pagination: {
     users: { page: 1, pageSize: 10 },
     kyc: { page: 1, pageSize: 10 },
+    deposits: { page: 1, pageSize: 10 },
     withdrawals: { page: 1, pageSize: 10 },
     transactions: { page: 1, pageSize: 10 },
     assets: { page: 1, pageSize: 10 }
@@ -28,6 +30,7 @@ const titleByView = {
   overview: "Overview",
   users: "Users",
   kyc: "KYC Reviews",
+  deposits: "Deposits",
   withdrawals: "Withdrawals",
   transactions: "Transactions",
   assets: "Assets",
@@ -138,7 +141,8 @@ function detailField(label, value) {
 }
 
 function assetAmount(value, symbol) {
-  return `${number(value, symbol === "USD" || symbol === "NGN" ? 2 : 8)} ${safe(symbol)}`;
+  const fiatCurrencies = ["USD", "NGN", "EUR", "GBP", "CAD", "AUD", "JPY", "CHF"];
+  return `${number(value, fiatCurrencies.includes(symbol) ? 2 : 8)} ${safe(symbol)}`;
 }
 
 function pageNumbers(currentPage, totalPages) {
@@ -247,10 +251,11 @@ function setView(view) {
 }
 
 async function loadAll() {
-  const [dashboard, users, kyc, withdrawals, transactions, assetsResponse, fees] = await Promise.all([
+  const [dashboard, users, kyc, deposits, withdrawals, transactions, assetsResponse, fees] = await Promise.all([
     api("/admin/dashboard"),
     api("/admin/users"),
     api("/admin/kyc"),
+    api("/admin/deposits"),
     api("/admin/withdrawals"),
     api("/admin/transactions"),
     apiEnvelope("/admin/assets"),
@@ -260,6 +265,7 @@ async function loadAll() {
   state.dashboard = dashboard;
   state.users = users;
   state.kyc = kyc;
+  state.deposits = deposits;
   state.withdrawals = withdrawals;
   state.transactions = transactions;
   state.previousPrices = Object.fromEntries(state.assets.map((asset) => [asset.symbol, asset.priceUsd]));
@@ -508,8 +514,8 @@ function renderUserDetailBalances(wallet) {
           .map(
             (balance) => `<tr>
               <td><strong>${safe(balance.assetSymbol)}</strong></td>
-              <td>${number(balance.available, balance.assetSymbol === "USD" || balance.assetSymbol === "NGN" ? 2 : 8)}</td>
-              <td>${number(balance.locked, balance.assetSymbol === "USD" || balance.assetSymbol === "NGN" ? 2 : 8)}</td>
+              <td>${assetAmount(balance.available, balance.assetSymbol)}</td>
+              <td>${assetAmount(balance.locked, balance.assetSymbol)}</td>
             </tr>`
           )
           .join("")}
@@ -645,7 +651,8 @@ function renderUserDetails() {
   </div>
 
   <div class="detail-summary">
-    <article class="summary-tile"><span>Portfolio</span><strong>${money(details.portfolioValueUsd)}</strong></article>
+    <article class="summary-tile"><span>Portfolio</span><strong>${number(details.portfolioValue, 2)} ${safe(details.portfolioCurrency || "USD")}</strong></article>
+    <article class="summary-tile"><span>USD value</span><strong>${money(details.portfolioValueUsd)}</strong></article>
     <article class="summary-tile"><span>KYC</span><strong>${safe(user.kycStatus.replaceAll("_", " "))}</strong></article>
     <article class="summary-tile"><span>Transactions</span><strong>${details.transactions.length}</strong></article>
     <article class="summary-tile"><span>Active alerts</span><strong>${activeAlerts}</strong></article>
@@ -668,7 +675,6 @@ function renderUserDetails() {
         ${detailField("2FA enabled", yesNo(user.twoFactorEnabled))}
         ${detailField("Fiat currency", user.settings?.fiatCurrency)}
         ${detailField("Theme", user.settings?.theme)}
-        ${detailField("Price alerts", yesNo(user.settings?.priceAlerts))}
         ${detailField("Push notifications", yesNo(user.settings?.pushNotifications))}
         ${detailField("Biometric login", yesNo(user.settings?.biometricEnabled))}
         ${detailField("Registered devices", devices)}
@@ -871,6 +877,25 @@ function renderWithdrawals() {
   renderPagination("withdrawals", state.withdrawals.length, "withdrawals");
 }
 
+function renderDeposits() {
+  const deposits = paginatedItems("deposits", state.deposits);
+  document.querySelector("#deposits-table").innerHTML = deposits
+    .map((item) => {
+      const user = state.users.find((candidate) => candidate.id === item.userId);
+      return `<tr>
+        <td class="mono">${safe(item.reference)}</td>
+        <td><strong>${safe(user?.fullName || item.userId)}</strong><br><span class="muted">${safe(user?.email || item.userId)}</span></td>
+        <td>${assetAmount(item.toAmount, item.toAsset)}</td>
+        <td>${statusChip(item.status)}</td>
+        <td>${safe(item.note || "No note")}</td>
+        <td>${date(item.createdAt)}</td>
+        <td>${date(item.completedAt)}</td>
+      </tr>`;
+    })
+    .join("");
+  renderPagination("deposits", state.deposits.length, "deposits");
+}
+
 function renderTransactions() {
   const transactions = paginatedItems("transactions", state.transactions);
   document.querySelector("#transactions-table").innerHTML = transactions
@@ -934,6 +959,7 @@ function render() {
   renderOverview();
   renderUsers();
   renderKyc();
+  renderDeposits();
   renderWithdrawals();
   renderTransactions();
   renderAssets();

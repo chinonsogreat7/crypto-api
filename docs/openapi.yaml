@@ -639,9 +639,6 @@ paths:
                   type: string
                   enum: [light, dark, system]
                   example: dark
-                priceAlerts:
-                  type: boolean
-                  example: true
                 pushNotifications:
                   type: boolean
                   example: true
@@ -650,6 +647,7 @@ paths:
                   example: false
                 fiatCurrency:
                   type: string
+                  enum: [USD, NGN, EUR, GBP, CAD, AUD, JPY, CHF]
                   example: USD
       responses:
         "200":
@@ -954,10 +952,14 @@ paths:
                     data:
                       - time: "2026-05-20T12:00:00.000Z"
                         valueUsd: 8942.32
+                        value: 8279.93
+                        currency: EUR
                     meta:
                       count: 30
                       range: 1M
                       latestValueUsd: 9011.44
+                      latestValue: 8343.93
+                      currency: EUR
   /wallet/deposit-addresses:
     get:
       tags: [Wallet]
@@ -1056,7 +1058,7 @@ paths:
   /wallet/deposit/simulate:
     post:
       tags: [Wallet]
-      summary: Simulate a sandbox USD deposit
+      summary: Simulate a sandbox USDT deposit
       description: Creates a pending deposit first. Students should poll the returned pollingUrl until the transaction status becomes completed.
       requestBody:
         required: true
@@ -1651,7 +1653,6 @@ components:
               language: en
               fiatCurrency: USD
               theme: system
-              priceAlerts: true
               pushNotifications: true
               biometricEnabled: false
             createdAt: "2026-05-03T14:00:00.000Z"
@@ -1843,7 +1844,6 @@ components:
             language: en
             fiatCurrency: USD
             theme: system
-            priceAlerts: true
             pushNotifications: true
             biometricEnabled: false
           createdAt: "2026-05-03T14:00:00.000Z"
@@ -1854,7 +1854,6 @@ components:
           language: en
           fiatCurrency: USD
           theme: system
-          priceAlerts: true
           pushNotifications: true
           biometricEnabled: false
     WatchlistSymbolsResponse:
@@ -1922,6 +1921,8 @@ components:
                 available: 0.25
                 locked: 0
           portfolioValueUsd: 1775.06
+          portfolioValue: 1643.57
+          portfolioCurrency: EUR
     DepositAddressesResponse:
       summary: Deposit addresses
       value:
@@ -1987,14 +1988,14 @@ components:
             userId: usr_student
             type: deposit
             status: pending
-            fromAsset: USD
-            toAsset: USD
+            fromAsset: USDT
+            toAsset: USDT
             fromAmount: 500
             toAmount: 500
             feeAmount: 0
             rate: 1
             reference: CRT-DEP-1780000000000
-            note: Sandbox deposit pending settlement
+            note: Sandbox USDT deposit pending settlement
             createdAt: "2026-05-03T14:10:00.000Z"
             completedAt: null
           wallet:
@@ -2003,8 +2004,8 @@ components:
             fiatCurrency: USD
             depositAddresses: []
             balances:
-              - assetSymbol: USD
-                available: 1000
+              - assetSymbol: USDT
+                available: 500
                 locked: 0
           estimatedCompletionAt: "2026-05-03T14:10:05.000Z"
           pollingUrl: /wallet/transactions/txn_deposit_001
@@ -2112,7 +2113,6 @@ components:
               language: en
               fiatCurrency: USD
               theme: system
-              priceAlerts: true
               pushNotifications: true
               biometricEnabled: false
             createdAt: "2026-05-03T14:00:00.000Z"
@@ -2136,7 +2136,6 @@ components:
               language: en
               fiatCurrency: USD
               theme: system
-              priceAlerts: true
               pushNotifications: true
               biometricEnabled: false
             createdAt: "2026-05-03T14:00:00.000Z"

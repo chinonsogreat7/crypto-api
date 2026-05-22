@@ -1,6 +1,6 @@
 import express, { type Request } from "express";
 import { saveCurrentDatabase } from "../data/persistence";
-import { clone, createId, db, findBalance, getAssetPrice, getWallet, portfolioValueUsd } from "../data/store";
+import { clone, convertUsdToFiat, createId, db, findBalance, getAssetPrice, getWallet, portfolioValueUsd } from "../data/store";
 import { requireAuth } from "../middleware/auth";
 import { notifyUser } from "../services/notifications";
 import type { AssetSymbol, WithdrawalRequest } from "../models";
@@ -32,11 +32,11 @@ function scheduleDepositSettlement(transactionId: string, delaySeconds: number):
     balance.available += transaction.toAmount;
     transaction.status = "completed";
     transaction.completedAt = new Date().toISOString();
-    transaction.note = "Sandbox deposit settled";
+    transaction.note = "Sandbox USDT deposit settled";
 
     await notifyUser({
       userId: transaction.userId,
-      title: "Deposit completed",
+      title: "USDT deposit completed",
       body: `${transaction.toAmount} ${transaction.toAsset} has been added to your sandbox wallet.`,
       type: "transaction",
       data: { transactionId: transaction.id, status: transaction.status }
@@ -49,9 +49,13 @@ function scheduleDepositSettlement(transactionId: string, delaySeconds: number):
 
 walletRouter.get("/", (req, res) => {
   const wallet = getWallet(req.user.id);
+  const portfolioCurrency = req.user.settings.fiatCurrency;
+  const currentValueUsd = portfolioValueUsd(req.user.id);
   return ok(res, {
     wallet: clone(wallet),
-    portfolioValueUsd: Number(portfolioValueUsd(req.user.id).toFixed(2))
+    portfolioValueUsd: Number(currentValueUsd.toFixed(2)),
+    portfolioValue: Number(convertUsdToFiat(currentValueUsd, portfolioCurrency).toFixed(2)),
+    portfolioCurrency
   });
 });
 
@@ -88,7 +92,8 @@ walletRouter.get("/portfolio/history", (req, res) => {
   const range = typeof req.query.range === "string" ? req.query.range.toUpperCase() : "1W";
   const allowedRanges = ["1D", "1W", "1M", "1Y"];
   const selectedRange = allowedRanges.includes(range) ? range : "1W";
-  const currentValue = portfolioValueUsd(req.user.id);
+  const portfolioCurrency = req.user.settings.fiatCurrency;
+  const currentValueUsd = portfolioValueUsd(req.user.id);
   const pointsByRange: Record<string, number> = { "1D": 24, "1W": 7, "1M": 30, "1Y": 12 };
   const stepMsByRange: Record<string, number> = {
     "1D": 60 * 60 * 1000,
@@ -104,17 +109,21 @@ walletRouter.get("/portfolio/history", (req, res) => {
     const age = points - index - 1;
     const wave = Math.sin(index * 0.85) * 0.035;
     const drift = (index - points + 1) * 0.002;
-    const valueUsd = Math.max(0, currentValue * (1 + wave + drift));
+    const valueUsd = Math.max(0, currentValueUsd * (1 + wave + drift));
     return {
       time: new Date(now - age * stepMs).toISOString(),
-      valueUsd: Number(valueUsd.toFixed(2))
+      valueUsd: Number(valueUsd.toFixed(2)),
+      value: Number(convertUsdToFiat(valueUsd, portfolioCurrency).toFixed(2)),
+      currency: portfolioCurrency
     };
   });
 
   return ok(res, history, {
     count: history.length,
     range: selectedRange,
-    latestValueUsd: Number(currentValue.toFixed(2))
+    latestValueUsd: Number(currentValueUsd.toFixed(2)),
+    latestValue: Number(convertUsdToFiat(currentValueUsd, portfolioCurrency).toFixed(2)),
+    currency: portfolioCurrency
   });
 });
 
@@ -146,14 +155,14 @@ walletRouter.post("/deposit/simulate", (req: Request<unknown, unknown, { amount?
     userId: req.user.id,
     type: "deposit" as const,
     status: "pending" as const,
-    fromAsset: "USD" as const,
-    toAsset: "USD" as const,
+    fromAsset: "USDT" as const,
+    toAsset: "USDT" as const,
     fromAmount: amount,
     toAmount: amount,
     feeAmount: 0,
     rate: 1,
     reference: `CRT-DEP-${Date.now()}`,
-    note: "Sandbox deposit pending settlement",
+    note: "Sandbox USDT deposit pending settlement",
     createdAt: new Date().toISOString(),
     completedAt: null
   };

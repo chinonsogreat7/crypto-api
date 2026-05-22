@@ -217,7 +217,6 @@ authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res)
       language: "en",
       fiatCurrency: "USD",
       theme: "system",
-      priceAlerts: true,
       pushNotifications: true,
       biometricEnabled: false
     },

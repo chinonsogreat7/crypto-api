@@ -77,11 +77,26 @@ export function getWallet(userId: string): Wallet {
   return wallet;
 }
 
+const fiatPriceUsd: Record<FiatCurrency, number> = {
+  USD: 1,
+  NGN: 0.00065,
+  EUR: 1.08,
+  GBP: 1.27,
+  CAD: 0.73,
+  AUD: 0.66,
+  JPY: 0.0064,
+  CHF: 1.12
+};
+
 export function getAssetPrice(symbol: AssetSymbol | FiatCurrency): number {
-  if (symbol === "USD" || symbol === "NGN") return symbol === "USD" ? 1 : 0.00065;
+  if (symbol in fiatPriceUsd) return fiatPriceUsd[symbol as FiatCurrency];
   const asset = db.assets.find((item) => item.symbol === symbol);
   if (!asset || !asset.isActive) throw new Error(`Asset ${symbol} is not supported.`);
   return asset.priceUsd;
+}
+
+export function convertUsdToFiat(valueUsd: number, currency: FiatCurrency): number {
+  return valueUsd / getAssetPrice(currency);
 }
 
 export function findBalance(wallet: Wallet, symbol: AssetSymbol | FiatCurrency) {
@@ -108,4 +123,8 @@ export function portfolioValueUsd(userId: string): number {
   return wallet.balances.reduce((sum, balance) => {
     return sum + balance.available * getAssetPrice(balance.assetSymbol);
   }, 0);
+}
+
+export function portfolioValue(userId: string, currency: FiatCurrency): number {
+  return convertUsdToFiat(portfolioValueUsd(userId), currency);
 }

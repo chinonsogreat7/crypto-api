@@ -47,6 +47,7 @@
         <button class="nav-item active" data-view="overview" type="button">Overview</button>
         <button class="nav-item" data-view="users" type="button">Users</button>
         <button class="nav-item" data-view="kyc" type="button">KYC</button>
+        <button class="nav-item" data-view="deposits" type="button">Deposits</button>
         <button class="nav-item" data-view="withdrawals" type="button">Withdrawals</button>
         <button class="nav-item" data-view="transactions" type="button">Transactions</button>
         <button class="nav-item" data-view="assets" type="button">Assets</button>
@@ -145,6 +146,34 @@
           </div>
           <div id="kyc-pagination" class="pagination-bar"></div>
           <div id="kyc-detail-panel" class="kyc-detail-panel hidden" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section id="deposits-view" class="view">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Deposits</h2>
+              <p>Sandbox wallet funding and settlement status.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Reference</th>
+                  <th>User</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Note</th>
+                  <th>Created</th>
+                  <th>Completed</th>
+                </tr>
+              </thead>
+              <tbody id="deposits-table"></tbody>
+            </table>
+          </div>
+          <div id="deposits-pagination" class="pagination-bar"></div>
         </div>
       </section>
 

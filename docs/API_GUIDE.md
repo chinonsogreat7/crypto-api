@@ -357,9 +357,9 @@ Content-Type: application/json
 
 The API always creates in-app notifications in `GET /me/notifications`. Real Expo push delivery is optional and only runs when `ENABLE_PUSH_NOTIFICATIONS=true` is set on the backend. Current push triggers include KYC review, withdrawal review, completed deposits, completed trades, and triggered price alerts.
 
-`GET /wallet` returns balances and total portfolio value.
+`GET /wallet` returns balances, `portfolioValueUsd`, and a display-currency portfolio value using the user's selected `fiatCurrency` from settings. For example, if settings use `EUR`, the response includes `portfolioValue` and `portfolioCurrency: "EUR"` while still keeping the USD value for compatibility.
 
-`POST /wallet/deposit/simulate` creates a pending fake USD deposit so students can test polling and status updates without real payments.
+`POST /wallet/deposit/simulate` creates a pending fake USDT deposit so students can test polling and status updates without real payments.
 
 ```http
 POST /wallet/deposit/simulate
@@ -412,7 +412,7 @@ This teaches why financial operations often need a back-office workflow.
 
 Use `GET /me` for profile data and `PATCH /me` for editable profile fields. Profile updates use the same validation rules as registration: names must be 2-80 characters, phone numbers must use international format such as `+2348010000001`, and avatar URLs must be http(s) URLs or API storage paths.
 
-Use `GET /me/settings` and `PATCH /me/settings` for language, fiat currency, theme, push notification, price alert, and biometric preferences.
+Use `GET /me/settings` and `PATCH /me/settings` for language, fiat currency, theme, push notification, and biometric preferences. Supported fiat display currencies are `USD`, `NGN`, `EUR`, `GBP`, `CAD`, `AUD`, `JPY`, and `CHF`.
 
 Use `GET /me/notifications` to populate the notifications screen.
 
