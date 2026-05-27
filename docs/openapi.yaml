@@ -59,6 +59,37 @@ paths:
               schema:
                 type: string
                 format: binary
+  /auth/validate-signup:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Validate signup email and phone availability
+      description: Use this before registration to show field-level signup validation. Send email, phone, or both.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                email:
+                  type: string
+                  example: ada@example.com
+                phone:
+                  type: string
+                  description: International phone number in E.164 format.
+                  example: "+2348010000001"
+      responses:
+        "200":
+          description: Field-level validation and availability status
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/SignupValidationResponse"
+        "400":
+          description: Missing email and phone
   /auth/register:
     post:
       tags: [Auth]
@@ -1765,6 +1796,25 @@ components:
         status: ok
         service: crypto-trade-api
         timestamp: "2026-05-03T14:50:00.000Z"
+    SignupValidationResponse:
+      summary: Signup field validation
+      value:
+        data:
+          email:
+            value: ada@example.com
+            normalized: ada@example.com
+            valid: true
+            available: true
+            code: AVAILABLE
+            message: Email is available.
+          phone:
+            value: "+2348010000001"
+            normalized: "+2348010000001"
+            valid: true
+            available: false
+            code: PHONE_EXISTS
+            message: A user with this phone number already exists.
+          canRegister: false
     AuthResponse:
       summary: Authenticated user
       value:

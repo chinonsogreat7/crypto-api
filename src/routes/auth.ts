@@ -23,6 +23,7 @@ import {
 export const authRouter = express.Router();
 const TWO_FACTOR_MAX_ATTEMPTS = 5;
 const authLimiter = rateLimit({ keyPrefix: "auth", windowMs: 60 * 1000, maxRequests: 20 });
+const signupValidationLimiter = rateLimit({ keyPrefix: "signup_validation", windowMs: 60 * 1000, maxRequests: 60 });
 const otpLimiter = rateLimit({ keyPrefix: "otp", windowMs: 60 * 1000, maxRequests: 5 });
 const kycLimiter = rateLimit({ keyPrefix: "kyc", windowMs: 60 * 1000, maxRequests: 10 });
 
@@ -48,6 +49,20 @@ interface RegisterBody {
   email?: string;
   phone?: string;
   password?: string;
+}
+
+interface SignupValidationBody {
+  email?: unknown;
+  phone?: unknown;
+}
+
+interface SignupFieldValidation {
+  value: string | null;
+  normalized: string | null;
+  valid: boolean;
+  available: boolean;
+  code: "AVAILABLE" | "INVALID_EMAIL" | "INVALID_PHONE" | "EMAIL_EXISTS" | "PHONE_EXISTS";
+  message: string;
 }
 
 interface VerifyOtpBody {
@@ -110,6 +125,74 @@ function failTwoFactorChallenge(challengeId: string) {
   return challenge;
 }
 
+function validateSignupEmail(value: unknown): SignupFieldValidation {
+  if (!isEmail(value)) {
+    return {
+      value: typeof value === "string" ? value : null,
+      normalized: null,
+      valid: false,
+      available: false,
+      code: "INVALID_EMAIL",
+      message: "Enter a valid email address."
+    };
+  }
+
+  const normalized = normalizeEmail(value);
+  if (db.users.some((user) => user.email === normalized)) {
+    return {
+      value,
+      normalized,
+      valid: true,
+      available: false,
+      code: "EMAIL_EXISTS",
+      message: "A user with this email already exists."
+    };
+  }
+
+  return {
+    value,
+    normalized,
+    valid: true,
+    available: true,
+    code: "AVAILABLE",
+    message: "Email is available."
+  };
+}
+
+function validateSignupPhone(value: unknown): SignupFieldValidation {
+  if (!isPhoneNumber(value)) {
+    return {
+      value: typeof value === "string" ? value : null,
+      normalized: null,
+      valid: false,
+      available: false,
+      code: "INVALID_PHONE",
+      message: "Enter a valid international phone number, for example +2348010000001."
+    };
+  }
+
+  const normalized = normalizePhone(value);
+  if (db.users.some((user) => user.phone === normalized)) {
+    return {
+      value,
+      normalized,
+      valid: true,
+      available: false,
+      code: "PHONE_EXISTS",
+      message: "A user with this phone number already exists."
+    };
+  }
+
+  return {
+    value,
+    normalized,
+    valid: true,
+    available: true,
+    code: "AVAILABLE",
+    message: "Phone number is available."
+  };
+}
+
 authRouter.get("/session", requireAuth, (req, res) => {
   const session = db.sessions.find((item) => item.token === req.authToken);
   if (!session) {
@@ -170,6 +253,24 @@ authRouter.post("/refresh", authLimiter, (req: Request<unknown, unknown, Refresh
 
   const nextSession = rotateSession(session);
   return ok(res, authResponse(user, nextSession));
+});
+
+authRouter.post("/validate-signup", signupValidationLimiter, (req: Request<unknown, unknown, SignupValidationBody>, res) => {
+  const hasEmail = req.body.email !== undefined;
+  const hasPhone = req.body.phone !== undefined;
+  if (!hasEmail && !hasPhone) {
+    return badRequest(res, "email or phone is required.", "MISSING_SIGNUP_IDENTIFIER");
+  }
+
+  const email = hasEmail ? validateSignupEmail(req.body.email) : null;
+  const phone = hasPhone ? validateSignupPhone(req.body.phone) : null;
+  const fields = [email, phone].filter((field): field is SignupFieldValidation => field !== null);
+
+  return ok(res, {
+    email,
+    phone,
+    canRegister: fields.every((field) => field.valid && field.available)
+  });
 });
 
 authRouter.post("/register", authLimiter, (req: Request<unknown, unknown, RegisterBody>, res) => {

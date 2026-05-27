@@ -85,6 +85,7 @@ List responses include `meta` with the request ID. Paginated list responses also
 | Screen or flow | Endpoint(s) |
 | --- | --- |
 | Splash and onboarding | Static app content for now |
+| Sign up validation | `POST /auth/validate-signup` |
 | Sign up | `POST /auth/register` |
 | Sign in | `POST /auth/login` |
 | Session refresh, check, and logout | `POST /auth/refresh`, `GET /auth/session`, `POST /auth/logout` |
@@ -117,6 +118,48 @@ List responses include `meta` with the request ID. Paginated list responses also
 | Admin audit trail | `GET /admin/audit-logs` |
 
 ## Auth Flow
+
+### Validate Signup Fields
+
+Use this before submitting the full registration form so the app can show field-level feedback while the student is still on the signup screen.
+
+```http
+POST /auth/validate-signup
+Content-Type: application/json
+
+{
+  "email": "ada@example.com",
+  "phone": "+2348010000001"
+}
+```
+
+You may send only `email`, only `phone`, or both. The endpoint uses the same normalization and validation rules as `POST /auth/register`.
+
+```json
+{
+  "data": {
+    "email": {
+      "value": "ada@example.com",
+      "normalized": "ada@example.com",
+      "valid": true,
+      "available": true,
+      "code": "AVAILABLE",
+      "message": "Email is available."
+    },
+    "phone": {
+      "value": "+2348010000001",
+      "normalized": "+2348010000001",
+      "valid": true,
+      "available": false,
+      "code": "PHONE_EXISTS",
+      "message": "A user with this phone number already exists."
+    },
+    "canRegister": false
+  }
+}
+```
+
+Frontend rule: enable the final Create Account button only when every field returned has `valid: true` and `available: true`. Still keep the normal `POST /auth/register` error handling, because another user could register the same email or phone after your validation request.
 
 ### Register
 

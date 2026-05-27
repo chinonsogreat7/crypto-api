@@ -81,6 +81,36 @@ async function main() {
 
   try {
     await request("/health");
+    const existingSignupValidationBody = await request("/auth/validate-signup", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        email: "student@cryptoclass.test",
+        phone: "+2348010000001"
+      })
+    });
+    if (existingSignupValidationBody.data.email.code !== "EMAIL_EXISTS" || existingSignupValidationBody.data.phone.code !== "PHONE_EXISTS") {
+      throw new Error("signup validation did not detect existing email and phone");
+    }
+    const availableSignupValidationBody = await request("/auth/validate-signup", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        email: `available-${Date.now()}@cryptoclass.test`,
+        phone: `+23481${Math.floor(10000000 + Math.random() * 89999999)}`
+      })
+    });
+    if (!availableSignupValidationBody.data.canRegister || !availableSignupValidationBody.data.email.available || !availableSignupValidationBody.data.phone.available) {
+      throw new Error("signup validation did not mark unused email and phone as available");
+    }
+    const invalidSignupValidationBody = await request("/auth/validate-signup", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "bad-email", phone: "string" })
+    });
+    if (invalidSignupValidationBody.data.canRegister || invalidSignupValidationBody.data.email.code !== "INVALID_EMAIL" || invalidSignupValidationBody.data.phone.code !== "INVALID_PHONE") {
+      throw new Error("signup validation did not return field-level invalid states");
+    }
     await expectBadRequest("/auth/register", {
       method: "POST",
       headers: { "content-type": "application/json" },
