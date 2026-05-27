@@ -5,6 +5,128 @@ import { evaluatePriceAlerts } from "../services/price-alerts";
 const TICK_INTERVAL_MS = Number(process.env.MARKET_TICK_INTERVAL_MS || 10000);
 const MAX_HISTORY_POINTS = 48;
 const STABLE_COINS = new Set(["USDC", "USDT"]);
+const SUPPLY_BY_SYMBOL: Record<AssetSymbol, { circulatingSupply: number; maxSupply: number | null; allTimeHighUsd: number; about: string; websiteUrl: string; explorerUrl: string }> = {
+  BTC: {
+    circulatingSupply: 19_700_000,
+    maxSupply: 21_000_000,
+    allTimeHighUsd: 108_000,
+    about: "Bitcoin is the first decentralized digital asset, designed as peer-to-peer money secured by proof of work.",
+    websiteUrl: "https://bitcoin.org",
+    explorerUrl: "https://mempool.space"
+  },
+  ETH: {
+    circulatingSupply: 120_000_000,
+    maxSupply: null,
+    allTimeHighUsd: 4_891,
+    about: "Ethereum is a smart contract network used for decentralized applications, tokens, and on-chain finance.",
+    websiteUrl: "https://ethereum.org",
+    explorerUrl: "https://etherscan.io"
+  },
+  USDC: {
+    circulatingSupply: 32_000_000_000,
+    maxSupply: null,
+    allTimeHighUsd: 1.04,
+    about: "USD Coin is a dollar-pegged stablecoin used for payments, settlement, and trading pairs.",
+    websiteUrl: "https://www.circle.com/usdc",
+    explorerUrl: "https://basescan.org"
+  },
+  USDT: {
+    circulatingSupply: 110_000_000_000,
+    maxSupply: null,
+    allTimeHighUsd: 1.03,
+    about: "Tether is a dollar-pegged stablecoin commonly used as quote currency across crypto markets.",
+    websiteUrl: "https://tether.to",
+    explorerUrl: "https://etherscan.io"
+  },
+  BNB: {
+    circulatingSupply: 153_000_000,
+    maxSupply: 200_000_000,
+    allTimeHighUsd: 793,
+    about: "BNB powers the BNB Smart Chain ecosystem and is used for fees, applications, and trading.",
+    websiteUrl: "https://www.bnbchain.org",
+    explorerUrl: "https://bscscan.com"
+  },
+  SOL: {
+    circulatingSupply: 460_000_000,
+    maxSupply: null,
+    allTimeHighUsd: 295,
+    about: "Solana is a high-throughput smart contract network used for fast, low-cost crypto applications.",
+    websiteUrl: "https://solana.com",
+    explorerUrl: "https://explorer.solana.com"
+  },
+  XRP: {
+    circulatingSupply: 55_000_000_000,
+    maxSupply: 100_000_000_000,
+    allTimeHighUsd: 3.84,
+    about: "XRP is a digital asset used on the XRP Ledger for fast settlement and payment experiments.",
+    websiteUrl: "https://xrpl.org",
+    explorerUrl: "https://xrpscan.com"
+  },
+  ADA: {
+    circulatingSupply: 35_000_000_000,
+    maxSupply: 45_000_000_000,
+    allTimeHighUsd: 3.1,
+    about: "Cardano is a proof-of-stake blockchain focused on smart contracts, governance, and research-driven upgrades.",
+    websiteUrl: "https://cardano.org",
+    explorerUrl: "https://cardanoscan.io"
+  },
+  DOGE: {
+    circulatingSupply: 145_000_000_000,
+    maxSupply: null,
+    allTimeHighUsd: 0.73,
+    about: "Dogecoin is a community-driven cryptocurrency originally launched as a meme coin.",
+    websiteUrl: "https://dogecoin.com",
+    explorerUrl: "https://dogechain.info"
+  },
+  AVAX: {
+    circulatingSupply: 380_000_000,
+    maxSupply: 720_000_000,
+    allTimeHighUsd: 146,
+    about: "Avalanche is a smart contract platform built for custom subnets, DeFi, and fast settlement.",
+    websiteUrl: "https://avax.network",
+    explorerUrl: "https://snowtrace.io"
+  },
+  DOT: {
+    circulatingSupply: 1_300_000_000,
+    maxSupply: null,
+    allTimeHighUsd: 55,
+    about: "Polkadot connects specialized blockchains through a shared security and interoperability model.",
+    websiteUrl: "https://polkadot.network",
+    explorerUrl: "https://polkadot.subscan.io"
+  },
+  LTC: {
+    circulatingSupply: 74_000_000,
+    maxSupply: 84_000_000,
+    allTimeHighUsd: 412,
+    about: "Litecoin is an early Bitcoin-inspired network designed for fast and inexpensive transfers.",
+    websiteUrl: "https://litecoin.org",
+    explorerUrl: "https://blockchair.com/litecoin"
+  },
+  TRX: {
+    circulatingSupply: 88_000_000_000,
+    maxSupply: null,
+    allTimeHighUsd: 0.3,
+    about: "TRON is a blockchain network commonly used for stablecoin transfers and decentralized applications.",
+    websiteUrl: "https://tron.network",
+    explorerUrl: "https://tronscan.org"
+  },
+  MATIC: {
+    circulatingSupply: 9_900_000_000,
+    maxSupply: 10_000_000_000,
+    allTimeHighUsd: 2.92,
+    about: "Polygon is an Ethereum scaling ecosystem used for low-cost applications and token transfers.",
+    websiteUrl: "https://polygon.technology",
+    explorerUrl: "https://polygonscan.com"
+  },
+  LINK: {
+    circulatingSupply: 587_000_000,
+    maxSupply: 1_000_000_000,
+    allTimeHighUsd: 52.7,
+    about: "Chainlink is an oracle network that connects smart contracts with off-chain data and services.",
+    websiteUrl: "https://chain.link",
+    explorerUrl: "https://etherscan.io"
+  }
+};
 export const CANDLE_INTERVALS = ["1m", "5m", "15m", "1h", "1d"] as const;
 export type CandleInterval = (typeof CANDLE_INTERVALS)[number];
 
@@ -43,6 +165,20 @@ export interface RecentMarketTrade {
   amount: number;
   totalUsd: number;
   createdAt: string;
+}
+
+export interface AssetMarketStats {
+  marketCapUsd: number;
+  volume24hUsd: number;
+  circulatingSupply: number;
+  maxSupply: number | null;
+  allTimeHighUsd: number;
+  high24hUsd: number;
+  low24hUsd: number;
+  volumeToMarketCapRatio: number;
+  about: string;
+  websiteUrl: string;
+  explorerUrl: string;
 }
 
 interface MarketState {
@@ -273,4 +409,30 @@ export function assetRecentTrades(symbol: AssetSymbol, limit = 30): RecentMarket
       createdAt: new Date(now - index * 12_000).toISOString()
     };
   });
+}
+
+export function assetMarketStats(symbol: AssetSymbol): AssetMarketStats | null {
+  const asset = db.assets.find((item) => item.symbol === symbol);
+  const supply = SUPPLY_BY_SYMBOL[symbol];
+  if (!asset || !supply) return null;
+
+  const volatility = volatilityFor(asset);
+  const high24hUsd = roundPrice(asset.priceUsd * (1 + Math.max(0.01, Math.abs(asset.change24h) / 100 + volatility * 8)));
+  const low24hUsd = roundPrice(asset.priceUsd * (1 - Math.max(0.01, Math.abs(asset.change24h) / 140 + volatility * 6)));
+  const marketCapUsd = Number((asset.priceUsd * supply.circulatingSupply).toFixed(2));
+  const volume24hUsd = Number((marketCapUsd * (STABLE_COINS.has(symbol) ? 0.18 : 0.035 + Math.abs(asset.change24h) / 1000)).toFixed(2));
+
+  return {
+    marketCapUsd,
+    volume24hUsd,
+    circulatingSupply: supply.circulatingSupply,
+    maxSupply: supply.maxSupply,
+    allTimeHighUsd: supply.allTimeHighUsd,
+    high24hUsd,
+    low24hUsd,
+    volumeToMarketCapRatio: Number((volume24hUsd / marketCapUsd).toFixed(4)),
+    about: supply.about,
+    websiteUrl: supply.websiteUrl,
+    explorerUrl: supply.explorerUrl
+  };
 }

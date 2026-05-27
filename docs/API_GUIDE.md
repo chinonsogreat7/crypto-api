@@ -302,6 +302,8 @@ Trade screens that look like an exchange can use these simulated market-data end
 
 These endpoints are still REST/polling friendly. For a beginner class, poll them using `meta.market.tickIntervalMs`; later, they can be upgraded to Server-Sent Events or WebSockets without changing the quote and execution flow.
 
+Asset detail screens should use `GET /market/assets/:symbol`. In addition to the base asset record and chart points, the response includes simulated `stats` such as `marketCapUsd`, `volume24hUsd`, `circulatingSupply`, `maxSupply`, `allTimeHighUsd`, `high24hUsd`, `low24hUsd`, `about`, `websiteUrl`, and `explorerUrl`. These are classroom/demo values, not live exchange data.
+
 Students can poll this endpoint from the mobile app:
 
 ```http
@@ -310,7 +312,49 @@ GET /market/prices
 
 The response includes `meta.market.lastUpdatedAt` and `meta.market.tickIntervalMs`, so students can show when prices were last refreshed and choose a sensible polling interval.
 
+For real-time list prices and chart refreshes, use the Server-Sent Events stream:
+
+```http
+GET /market/stream
+Accept: text/event-stream
+```
+
+The stream emits `prices` events with the same row shape as `/market/prices`. On mobile, this can power moving prices and sparklines without firing one request per asset. Use REST for quotes/trades, and use the stream only for market display data.
+
+For market list screens, use `GET /market/trending`. It includes row `sparkline` data by default and returns `meta.featured` for the hero card:
+
+```json
+{
+  "meta": {
+    "featured": {
+      "type": "top_gainer",
+      "symbol": "SOL",
+      "name": "Solana",
+      "priceUsd": 152,
+      "change24h": 4.2,
+      "reason": "Highest 24h percentage gain among active assets"
+    }
+  }
+}
+```
+
+That means the green “Top Gainer” card in the design should come from `meta.featured`, while the list rows should come from `data`.
+
 This is not connected to real exchanges. It is designed to behave like a live market feed without API keys, rate limits, or real-money risk.
+
+## Verification Levels And Limits
+
+KYC is an in-app flow, not part of account creation. Users can register, sign in, browse markets, view wallets, and learn the app before submitting identity documents. The current verification state is returned from `GET /me` as both `kycStatus` and a richer `verification` object with the user's tier, level, feature flags, and transaction limits.
+
+The sandbox uses these teaching tiers:
+
+| Tier | KYC status | What it allows |
+| --- | --- | --- |
+| Starter | `not_started` or `rejected` | Browse markets and create small sandbox deposits up to $100. Trading and withdrawals are locked. |
+| Review in progress | `pending` | User has submitted KYC. Sandbox deposits are allowed up to $250 while trade and withdrawal stay locked. |
+| Verified | `approved` | Trading up to $5,000 per quote, withdrawals up to $2,500 per request, and sandbox deposits up to $10,000. |
+
+Use the `verification` object to drive UI gates. For example, Trade and Withdraw screens should show a verification-required prompt when `canTrade` or `canWithdraw` is false, and should show limit messaging when an amount is above the returned limit.
 
 Admins can pause an asset with `PATCH /admin/assets/:symbol` and `{ "isActive": false }`. Paused assets remain visible in the admin console, but they disappear from customer market endpoints and cannot be used for new quotes or trades. Set `{ "isActive": true }` to allow the asset again.
 
@@ -338,6 +382,7 @@ Then execute the quote with the transaction PIN.
 ```http
 POST /trade/execute
 Authorization: Bearer demo-user-token
+Idempotency-Key: trade-confirm-001
 Content-Type: application/json
 
 {
@@ -347,6 +392,19 @@ Content-Type: application/json
 ```
 
 This design teaches an important fintech concept: the preview step and execution step should be separate because rates and fees can expire.
+
+## Retry Safety And Rate Limits
+
+Sensitive mutation routes support `Idempotency-Key` so mobile apps can safely retry after a network timeout without creating duplicate records:
+
+- `POST /trade/execute`
+- `POST /wallet/deposit/simulate`
+- `POST /wallet/withdrawals`
+- `POST /auth/kyc`
+
+Use a unique key per user action. If the same key and same request body are sent again, the API replays the original successful response. If the same key is reused with a different body, the API returns `409 IDEMPOTENCY_KEY_CONFLICT`.
+
+Abuse-sensitive endpoints also have lightweight classroom rate limits: login, registration, refresh, OTP, 2FA verification, KYC upload creation, quote creation, trade execution, simulated deposits, and withdrawal requests. When a client exceeds a limit, the API returns `429 RATE_LIMITED` with `retryAfterSeconds`.
 
 ## Wallet Flow
 

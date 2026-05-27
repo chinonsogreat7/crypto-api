@@ -9,6 +9,7 @@ import type {
   User,
   Wallet
 } from "../models";
+import { verificationProfileForUser } from "../services/verification";
 import { initialData } from "./initial-data";
 
 export const db: Database = clone(initialData);
@@ -36,7 +37,10 @@ export function createId(prefix: string): string {
 
 export function publicUser(user: User): PublicUser {
   const { password, pin, twoFactorSecret, twoFactorRecoveryCodes, ...safeUser } = user;
-  return clone(safeUser);
+  return clone({
+    ...safeUser,
+    verification: verificationProfileForUser(user)
+  });
 }
 
 export function clone<T>(value: T): T {

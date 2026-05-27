@@ -2,15 +2,20 @@ import express, { type Request } from "express";
 import { saveCurrentDatabase } from "../data/persistence";
 import { clone, convertUsdToFiat, createId, db, findBalance, getAssetPrice, getWallet, portfolioValueUsd } from "../data/store";
 import { requireAuth } from "../middleware/auth";
+import { idempotency } from "../middleware/idempotency";
+import { rateLimit } from "../middleware/rate-limit";
 import { notifyUser } from "../services/notifications";
+import { limitExceededMessage, verificationProfileForUser } from "../services/verification";
 import type { AssetSymbol, WithdrawalRequest } from "../models";
-import { badRequest, created, notFound, ok } from "../utils/http";
+import { badRequest, created, forbidden, notFound, ok } from "../utils/http";
 import { paginate, sortDirection } from "../utils/pagination";
 import { isAssetSymbol, isBlockchainAddress, isNonEmptyString, isPositiveNumber } from "../utils/validation";
 
 export const walletRouter = express.Router();
 
 walletRouter.use(requireAuth);
+const depositLimiter = rateLimit({ keyPrefix: "wallet.deposit", windowMs: 60 * 1000, maxRequests: 15 });
+const withdrawalLimiter = rateLimit({ keyPrefix: "wallet.withdrawal", windowMs: 60 * 1000, maxRequests: 10 });
 
 const DEFAULT_DEPOSIT_SETTLEMENT_SECONDS = Number(process.env.DEPOSIT_SETTLEMENT_SECONDS || 5);
 
@@ -47,6 +52,16 @@ function scheduleDepositSettlement(transactionId: string, delaySeconds: number):
   timer.unref?.();
 }
 
+function withdrawalUsedTodayUsd(userId: string): number {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  return db.withdrawalRequests
+    .filter((withdrawal) => withdrawal.userId === userId && withdrawal.status !== "rejected")
+    .filter((withdrawal) => new Date(withdrawal.createdAt).getTime() >= startOfDay.getTime())
+    .reduce((sum, withdrawal) => sum + withdrawal.amount * getAssetPrice(withdrawal.assetSymbol), 0);
+}
+
 walletRouter.get("/", (req, res) => {
   const wallet = getWallet(req.user.id);
   const portfolioCurrency = req.user.settings.fiatCurrency;
@@ -55,7 +70,8 @@ walletRouter.get("/", (req, res) => {
     wallet: clone(wallet),
     portfolioValueUsd: Number(currentValueUsd.toFixed(2)),
     portfolioValue: Number(convertUsdToFiat(currentValueUsd, portfolioCurrency).toFixed(2)),
-    portfolioCurrency
+    portfolioCurrency,
+    verification: verificationProfileForUser(req.user)
   });
 });
 
@@ -136,7 +152,7 @@ walletRouter.get("/transactions/:transactionId", (req, res) => {
   return ok(res, clone(transaction));
 });
 
-walletRouter.post("/deposit/simulate", (req: Request<unknown, unknown, { amount?: number; settlementDelaySeconds?: number }>, res) => {
+walletRouter.post("/deposit/simulate", depositLimiter, idempotency("wallet.deposit.simulate"), (req: Request<unknown, unknown, { amount?: number; settlementDelaySeconds?: number }>, res) => {
   const amount = req.body.amount;
   if (!isPositiveNumber(amount, 1_000_000)) {
     return badRequest(res, "amount must be greater than zero.");
@@ -144,6 +160,11 @@ walletRouter.post("/deposit/simulate", (req: Request<unknown, unknown, { amount?
 
   if (req.body.settlementDelaySeconds !== undefined && !isPositiveNumber(req.body.settlementDelaySeconds, 60)) {
     return badRequest(res, "settlementDelaySeconds must be a number between 1 and 60.", "INVALID_SETTLEMENT_DELAY");
+  }
+
+  const verification = verificationProfileForUser(req.user);
+  if (amount > verification.limits.depositPerTransactionUsd) {
+    return forbidden(res, limitExceededMessage("deposit", verification.limits.depositPerTransactionUsd), "KYC_DEPOSIT_LIMIT_EXCEEDED");
   }
 
   const wallet = getWallet(req.user.id);
@@ -177,7 +198,7 @@ walletRouter.post("/deposit/simulate", (req: Request<unknown, unknown, { amount?
   });
 });
 
-walletRouter.post("/withdrawals", (req: Request<unknown, unknown, { assetSymbol?: AssetSymbol; amount?: number; address?: string; network?: string }>, res) => {
+walletRouter.post("/withdrawals", withdrawalLimiter, idempotency("wallet.withdrawal.create"), (req: Request<unknown, unknown, { assetSymbol?: AssetSymbol; amount?: number; address?: string; network?: string }>, res) => {
   const { assetSymbol, address, network } = req.body;
   const amount = req.body.amount;
 
@@ -187,6 +208,17 @@ walletRouter.post("/withdrawals", (req: Request<unknown, unknown, { assetSymbol?
 
   if (!db.assets.some((asset) => asset.symbol === assetSymbol && asset.isActive)) {
     return badRequest(res, "assetSymbol is not supported.", "UNSUPPORTED_ASSET");
+  }
+
+  const amountUsd = amount * getAssetPrice(assetSymbol);
+  const verification = verificationProfileForUser(req.user);
+  if (amountUsd > verification.limits.withdrawalPerTransactionUsd) {
+    return forbidden(res, limitExceededMessage("withdrawal", verification.limits.withdrawalPerTransactionUsd), "KYC_WITHDRAWAL_LIMIT_EXCEEDED");
+  }
+
+  const usedTodayUsd = withdrawalUsedTodayUsd(req.user.id);
+  if (usedTodayUsd + amountUsd > verification.limits.dailyWithdrawalUsd) {
+    return forbidden(res, `This withdrawal is above your remaining daily withdrawal limit of $${Math.max(0, verification.limits.dailyWithdrawalUsd - usedTodayUsd).toFixed(2)}.`, "KYC_DAILY_WITHDRAWAL_LIMIT_EXCEEDED");
   }
 
   const wallet = getWallet(req.user.id);

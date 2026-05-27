@@ -26,6 +26,39 @@ async function requestText(path: string, options: RequestInit = {}) {
   return body;
 }
 
+async function requestFirstSseEvent(path: string) {
+  const controller = new AbortController();
+  const response = await fetch(`${baseUrl}${path}`, {
+    headers: { accept: "text/event-stream" },
+    signal: controller.signal
+  });
+  if (!response.ok || !response.body) {
+    throw new Error(`GET ${path} stream failed with ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (!buffer.includes("\n\n")) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    controller.abort();
+    reader.releaseLock();
+  }
+
+  const dataLine = buffer.split("\n").find((line) => line.startsWith("data: "));
+  if (!dataLine) {
+    throw new Error(`GET ${path} did not return an SSE data line`);
+  }
+
+  return JSON.parse(dataLine.slice("data: ".length));
+}
+
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -71,6 +104,17 @@ async function main() {
     if (!newUserBody.data.accessToken || !newUserBody.data.refreshToken) {
       throw new Error("registration did not return accessToken and refreshToken");
     }
+    const newUserHeaders = { authorization: `Bearer ${newUserBody.data.accessToken}` };
+    await expectStatus("/trade/quotes", {
+      method: "POST",
+      headers: { ...newUserHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ type: "buy", fromAsset: "USDT", toAsset: "BTC", fromAmount: 50 })
+    }, 403, "unverified trade limit");
+    await expectStatus("/wallet/deposit/simulate", {
+      method: "POST",
+      headers: { ...newUserHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ amount: 500 })
+    }, 403, "unverified deposit limit");
     const refreshBody = await request("/auth/refresh", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -145,13 +189,24 @@ async function main() {
       throw new Error("market assets did not return sparkline data when requested");
     }
     await request("/market/prices");
+    const streamBody = await requestFirstSseEvent("/market/stream");
+    if (!Array.isArray(streamBody.data) || typeof streamBody.data[0]?.priceUsd !== "number") {
+      throw new Error("market stream did not return live price rows");
+    }
     const trendingBody = await request("/market/trending");
     if (!Array.isArray(trendingBody.data[0]?.sparkline) || trendingBody.data[0].sparkline.length === 0) {
       throw new Error("market trending did not return default sparkline data");
     }
+    if (trendingBody.meta?.featured?.type !== "top_gainer" || typeof trendingBody.meta.featured.change24h !== "number") {
+      throw new Error("market trending did not return top gainer metadata");
+    }
     const candleBody = await request("/market/assets/BTC/candles?interval=1m&limit=5");
     if (candleBody.meta.interval !== "1m" || candleBody.data.length !== 5 || typeof candleBody.data[0]?.closeUsd !== "number") {
       throw new Error("market candles did not return expected candle data");
+    }
+    const assetDetailBody = await request("/market/assets/BTC");
+    if (typeof assetDetailBody.data.stats?.marketCapUsd !== "number" || typeof assetDetailBody.data.stats?.volume24hUsd !== "number") {
+      throw new Error("market asset detail did not return simulated stats");
     }
     const orderBookBody = await request("/market/assets/BTC/order-book?levels=5");
     if (orderBookBody.data.bids.length !== 5 || orderBookBody.data.asks.length !== 5 || typeof orderBookBody.data.spreadUsd !== "number") {
@@ -220,6 +275,9 @@ async function main() {
     const walletBody = await request("/wallet", { headers: userHeaders });
     if (walletBody.data.portfolioCurrency !== "EUR" || typeof walletBody.data.portfolioValue !== "number") {
       throw new Error("wallet did not return portfolio value in selected fiat currency");
+    }
+    if (!walletBody.data.verification?.tier || typeof walletBody.data.verification?.limits?.tradePerTransactionUsd !== "number") {
+      throw new Error("wallet did not return expected KYC limit profile");
     }
     const portfolioHistoryBody = await request("/wallet/portfolio/history?range=1M", { headers: userHeaders });
     if (portfolioHistoryBody.meta.currency !== "EUR" || typeof portfolioHistoryBody.meta.latestValue !== "number") {
@@ -300,11 +358,20 @@ async function main() {
       body: JSON.stringify({ assetSymbol: "ETH", amount: "0.05", address: "bad", network: "Ethereum Sepolia" })
     }, "invalid withdrawal");
 
+    const depositIdempotencyKey = `smoke-deposit-${Date.now()}`;
     const depositBody = await request("/wallet/deposit/simulate", {
       method: "POST",
-      headers: { ...userHeaders, "content-type": "application/json" },
+      headers: { ...userHeaders, "content-type": "application/json", "idempotency-key": depositIdempotencyKey },
       body: JSON.stringify({ amount: 500, settlementDelaySeconds: 1 })
     });
+    const replayedDepositBody = await request("/wallet/deposit/simulate", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json", "idempotency-key": depositIdempotencyKey },
+      body: JSON.stringify({ amount: 500, settlementDelaySeconds: 1 })
+    });
+    if (replayedDepositBody.data.transaction.id !== depositBody.data.transaction.id) {
+      throw new Error("deposit idempotency did not replay the original transaction");
+    }
     await request("/admin/deposits?page=1&limit=10&status=pending", { headers: adminHeaders });
     await request(depositBody.data.pollingUrl, { headers: userHeaders });
     await wait(1200);
@@ -323,11 +390,20 @@ async function main() {
     });
     await request(`/trade/quotes/${quoteBody.data.id}`, { headers: userHeaders });
 
-    await request("/trade/execute", {
+    const tradeIdempotencyKey = `smoke-trade-${Date.now()}`;
+    const tradeExecutionBody = await request("/trade/execute", {
       method: "POST",
-      headers: { ...userHeaders, "content-type": "application/json" },
+      headers: { ...userHeaders, "content-type": "application/json", "idempotency-key": tradeIdempotencyKey },
       body: JSON.stringify({ quoteId: quoteBody.data.id, pin: "1234" })
     });
+    const replayedTradeExecutionBody = await request("/trade/execute", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json", "idempotency-key": tradeIdempotencyKey },
+      body: JSON.stringify({ quoteId: quoteBody.data.id, pin: "1234" })
+    });
+    if (replayedTradeExecutionBody.data.transaction.id !== tradeExecutionBody.data.transaction.id) {
+      throw new Error("trade execution idempotency did not replay the original transaction");
+    }
 
     await request("/wallet/transactions?page=1&limit=10&type=buy&status=completed", { headers: userHeaders });
     console.log("Smoke test passed.");

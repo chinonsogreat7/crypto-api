@@ -9,14 +9,19 @@ import {
   getWallet
 } from "../data/store";
 import { requireAuth } from "../middleware/auth";
+import { idempotency } from "../middleware/idempotency";
+import { rateLimit } from "../middleware/rate-limit";
 import { notifyUser } from "../services/notifications";
+import { limitExceededMessage, verificationProfileForUser } from "../services/verification";
 import type { AssetSymbol, FiatCurrency, Quote, Transaction } from "../models";
-import { badRequest, created, notFound, ok } from "../utils/http";
+import { badRequest, created, forbidden, notFound, ok } from "../utils/http";
 import { isEnumValue, isPin, isPositiveNumber } from "../utils/validation";
 
 export const tradingRouter = express.Router();
 
 tradingRouter.use(requireAuth);
+const quoteLimiter = rateLimit({ keyPrefix: "trade.quote", windowMs: 60 * 1000, maxRequests: 30 });
+const executeLimiter = rateLimit({ keyPrefix: "trade.execute", windowMs: 60 * 1000, maxRequests: 20 });
 
 type TradeType = "buy" | "sell" | "swap";
 
@@ -47,7 +52,7 @@ function quoteResponse(quote: Quote) {
   };
 }
 
-tradingRouter.post("/quotes", (req: Request<unknown, unknown, QuoteBody>, res) => {
+tradingRouter.post("/quotes", quoteLimiter, (req: Request<unknown, unknown, QuoteBody>, res) => {
   const { type, fromAsset, toAsset } = req.body;
   const fromAmount = req.body.fromAmount;
 
@@ -62,6 +67,11 @@ tradingRouter.post("/quotes", (req: Request<unknown, unknown, QuoteBody>, res) =
   const fromPrice = getAssetPrice(fromAsset);
   const toPrice = getAssetPrice(toAsset);
   const grossUsd = fromAmount * fromPrice;
+  const verification = verificationProfileForUser(req.user);
+  if (grossUsd > verification.limits.tradePerTransactionUsd) {
+    return forbidden(res, limitExceededMessage("trade", verification.limits.tradePerTransactionUsd), "KYC_TRADE_LIMIT_EXCEEDED");
+  }
+
   const feeAmount = grossUsd * (feePercent(type) / 100);
   const spreadAmount = grossUsd * (db.feeSettings.spreadPercent / 100);
   const netUsd = grossUsd - feeAmount - spreadAmount;
@@ -92,7 +102,7 @@ tradingRouter.get("/quotes/:quoteId", (req, res) => {
   return ok(res, quoteResponse(quote));
 });
 
-tradingRouter.post("/execute", async (req: Request<unknown, unknown, ExecuteBody>, res) => {
+tradingRouter.post("/execute", executeLimiter, idempotency("trade.execute"), async (req: Request<unknown, unknown, ExecuteBody>, res) => {
   const { quoteId, pin } = req.body;
   if (!quoteId || !pin) {
     return badRequest(res, "quoteId and pin are required.");
@@ -102,8 +112,9 @@ tradingRouter.post("/execute", async (req: Request<unknown, unknown, ExecuteBody
     return badRequest(res, "Invalid transaction PIN.", "INVALID_PIN");
   }
 
-  if (req.user.kycStatus !== "approved") {
-    return badRequest(res, "KYC must be approved before trading.", "KYC_REQUIRED");
+  const verification = verificationProfileForUser(req.user);
+  if (!verification.canTrade) {
+    return forbidden(res, "KYC must be approved before trading.", "KYC_REQUIRED");
   }
 
   const quote = db.quotes.find((item) => item.id === quoteId);
@@ -113,6 +124,11 @@ tradingRouter.post("/execute", async (req: Request<unknown, unknown, ExecuteBody
 
   if (new Date(quote.expiresAt).getTime() < Date.now()) {
     return badRequest(res, "Quote has expired. Request a new quote.", "QUOTE_EXPIRED");
+  }
+
+  const quoteUsd = quote.fromAmount * getAssetPrice(quote.fromAsset);
+  if (quoteUsd > verification.limits.tradePerTransactionUsd) {
+    return forbidden(res, limitExceededMessage("trade", verification.limits.tradePerTransactionUsd), "KYC_TRADE_LIMIT_EXCEEDED");
   }
 
   const wallet = getWallet(req.user.id);

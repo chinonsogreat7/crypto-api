@@ -1,6 +1,6 @@
 import express from "express";
 import { clone, db } from "../data/store";
-import { assetCandles, assetHistory, assetOrderBook, assetRecentTrades, assetSparkline, CANDLE_INTERVALS, marketMeta } from "../data/market-simulator";
+import { assetCandles, assetHistory, assetMarketStats, assetOrderBook, assetRecentTrades, assetSparkline, CANDLE_INTERVALS, marketMeta } from "../data/market-simulator";
 import { badRequest, notFound, ok } from "../utils/http";
 import { numberQuery, paginate, sortDirection } from "../utils/pagination";
 import { isEnumValue } from "../utils/validation";
@@ -26,6 +26,31 @@ function listAsset(asset: (typeof db.assets)[number], withSparkline: boolean) {
 
 function findActiveAsset(symbol: string) {
   return db.assets.find((item) => item.symbol.toLowerCase() === symbol.toLowerCase() && item.isActive);
+}
+
+function priceRows() {
+  return db.assets
+    .filter((asset) => asset.isActive)
+    .map((asset) => ({
+      symbol: asset.symbol,
+      name: asset.name,
+      priceUsd: asset.priceUsd,
+      change24h: asset.change24h,
+      updatedAt: marketMeta().lastUpdatedAt
+    }));
+}
+
+function sendMarketEvent(res: express.Response): void {
+  const payload = {
+    data: priceRows(),
+    meta: {
+      count: db.assets.filter((asset) => asset.isActive).length,
+      market: marketMeta()
+    }
+  };
+
+  res.write(`event: prices\n`);
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
 marketRouter.get("/assets", (req, res) => {
@@ -108,31 +133,55 @@ marketRouter.get("/assets/:symbol", (req, res) => {
 
   return ok(res, {
     ...clone(asset),
+    stats: assetMarketStats(asset.symbol),
     chart: assetHistory(asset.symbol)
   });
 });
 
 marketRouter.get("/prices", (req, res) => {
-  const prices = db.assets
-    .filter((asset) => asset.isActive)
-    .map((asset) => ({
-      symbol: asset.symbol,
-      name: asset.name,
-      priceUsd: asset.priceUsd,
-      change24h: asset.change24h,
-      updatedAt: marketMeta().lastUpdatedAt
-    }));
+  const prices = priceRows();
 
   return ok(res, prices, { count: prices.length, market: marketMeta() });
 });
 
+marketRouter.get("/stream", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+
+  sendMarketEvent(res);
+  const interval = setInterval(() => sendMarketEvent(res), marketMeta().tickIntervalMs);
+
+  req.on("close", () => {
+    clearInterval(interval);
+    res.end();
+  });
+});
+
 marketRouter.get("/trending", (req, res) => {
   const withSparkline = includesSparkline(req, true);
-  const trending = clone(db.assets)
+  const sortedAssets = clone(db.assets)
     .filter((asset) => asset.isActive)
-    .sort((a, b) => b.change24h - a.change24h)
+    .sort((a, b) => b.change24h - a.change24h);
+  const topGainer = sortedAssets[0] || null;
+  const trending = sortedAssets
     .slice(0, 4)
     .map((asset) => listAsset(asset, withSparkline));
 
-  return ok(res, trending, { count: trending.length, market: marketMeta(), include: withSparkline ? ["sparkline"] : [] });
+  return ok(res, trending, {
+    count: trending.length,
+    market: marketMeta(),
+    featured: topGainer
+      ? {
+          type: "top_gainer",
+          symbol: topGainer.symbol,
+          name: topGainer.name,
+          priceUsd: topGainer.priceUsd,
+          change24h: topGainer.change24h,
+          reason: "Highest 24h percentage gain among active assets"
+        }
+      : null,
+    include: withSparkline ? ["sparkline"] : []
+  });
 });

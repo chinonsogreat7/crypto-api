@@ -373,6 +373,8 @@ paths:
     post:
       tags: [Auth]
       summary: Submit KYC for review
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -648,7 +650,7 @@ paths:
             application/json:
               examples:
                 success:
-                  $ref: "#/components/examples/AssetListWithSparklineResponse"
+                  $ref: "#/components/examples/TrendingAssetsResponse"
   /market/prices:
     get:
       tags: [Market]
@@ -662,6 +664,22 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/PriceFeedResponse"
+  /market/stream:
+    get:
+      tags: [Market]
+      security: []
+      summary: Stream simulated live market prices
+      description: Server-Sent Events stream for mobile list prices, sparklines, and lightweight chart refreshes. Events are named `prices`.
+      responses:
+        "200":
+          description: SSE stream of simulated live price rows
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              example: |
+                event: prices
+                data: {"data":[{"symbol":"BTC","name":"Bitcoin","priceUsd":64200.5,"change24h":2.1,"updatedAt":"2026-05-25T10:00:00.000Z"}],"meta":{"count":1,"market":{"mode":"simulated_live_market","source":"backend price simulator","lastUpdatedAt":"2026-05-25T10:00:00.000Z","tickIntervalMs":10000}}}
   /me:
     get:
       tags: [Profile]
@@ -1155,6 +1173,8 @@ paths:
       tags: [Wallet]
       summary: Simulate a sandbox USDT deposit
       description: Creates a pending deposit first. Students should poll the returned pollingUrl until the transaction status becomes completed.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -1182,6 +1202,8 @@ paths:
     post:
       tags: [Wallet]
       summary: Request a withdrawal
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -1263,6 +1285,8 @@ paths:
     post:
       tags: [Trade]
       summary: Execute a quote with transaction PIN
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -1723,6 +1747,17 @@ components:
       schema:
         type: string
       example: BTC
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: false
+      description: Optional retry-safety key for sensitive POST requests. Reusing the same key with the same body replays the original successful response; using it with a different body returns 409.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+        pattern: "^[A-Za-z0-9._:-]+$"
+      example: class-demo-quote-001
   examples:
     HealthResponse:
       summary: Healthy API
@@ -1742,6 +1777,19 @@ components:
             phone: "+2348010000001"
             twoFactorEnabled: false
             kycStatus: approved
+            verification:
+              status: approved
+              tier: verified
+              level: 2
+              label: Verified
+              limits:
+                depositPerTransactionUsd: 10000
+                tradePerTransactionUsd: 5000
+                withdrawalPerTransactionUsd: 2500
+                dailyWithdrawalUsd: 10000
+              canTrade: true
+              canWithdraw: true
+              canUseSandboxDeposits: true
             avatarUrl: null
             watchlist: [BTC, ETH]
             settings:
@@ -1919,6 +1967,54 @@ components:
         meta:
           count: 2
           include: [sparkline]
+    TrendingAssetsResponse:
+      summary: Trending assets with hero metadata
+      value:
+        data:
+          - id: asset_sol
+            symbol: SOL
+            name: Solana
+            network: Solana Devnet
+            priceUsd: 152
+            change24h: 4.2
+            isActive: true
+            minBuyUsd: 10
+            minSellUsd: 10
+            iconUrl: /assets/sol.svg
+            sparkline:
+              - time: "2026-05-25T08:00:00.000Z"
+                priceUsd: 145.88
+              - time: "2026-05-25T09:00:00.000Z"
+                priceUsd: 149.31
+              - time: "2026-05-25T10:00:00.000Z"
+                priceUsd: 152
+          - id: asset_btc
+            symbol: BTC
+            name: Bitcoin
+            network: Bitcoin Testnet
+            priceUsd: 64200.5
+            change24h: 2.1
+            isActive: true
+            minBuyUsd: 10
+            minSellUsd: 10
+            iconUrl: /assets/btc.svg
+            sparkline:
+              - time: "2026-05-25T08:00:00.000Z"
+                priceUsd: 62916.49
+              - time: "2026-05-25T09:00:00.000Z"
+                priceUsd: 63879.5
+              - time: "2026-05-25T10:00:00.000Z"
+                priceUsd: 64200.5
+        meta:
+          count: 2
+          include: [sparkline]
+          featured:
+            type: top_gainer
+            symbol: SOL
+            name: Solana
+            priceUsd: 152
+            change24h: 4.2
+            reason: Highest 24h percentage gain among active assets
     AssetDetailResponse:
       summary: Asset details with chart
       value:
@@ -1933,6 +2029,18 @@ components:
           minBuyUsd: 10
           minSellUsd: 10
           iconUrl: /assets/btc.svg
+          stats:
+            marketCapUsd: 1264749850000
+            volume24hUsd: 47048644420
+            circulatingSupply: 19700000
+            maxSupply: 21000000
+            allTimeHighUsd: 108000
+            high24hUsd: 65742.71
+            low24hUsd: 62596.1
+            volumeToMarketCapRatio: 0.0372
+            about: Bitcoin is the first decentralized digital asset, designed as peer-to-peer money secured by proof of work.
+            websiteUrl: https://bitcoin.org
+            explorerUrl: https://mempool.space
           chart:
             - time: "09:00"
               priceUsd: 62916.49
@@ -2036,6 +2144,19 @@ components:
           phone: "+2348010000001"
           twoFactorEnabled: false
           kycStatus: approved
+          verification:
+            status: approved
+            tier: verified
+            level: 2
+            label: Verified
+            limits:
+              depositPerTransactionUsd: 10000
+              tradePerTransactionUsd: 5000
+              withdrawalPerTransactionUsd: 2500
+              dailyWithdrawalUsd: 10000
+            canTrade: true
+            canWithdraw: true
+            canUseSandboxDeposits: true
           avatarUrl: null
           watchlist: [BTC, ETH]
           settings:
@@ -2121,6 +2242,19 @@ components:
           portfolioValueUsd: 1775.06
           portfolioValue: 1643.57
           portfolioCurrency: EUR
+          verification:
+            status: approved
+            tier: verified
+            level: 2
+            label: Verified
+            limits:
+              depositPerTransactionUsd: 10000
+              tradePerTransactionUsd: 5000
+              withdrawalPerTransactionUsd: 2500
+              dailyWithdrawalUsd: 10000
+            canTrade: true
+            canWithdraw: true
+            canUseSandboxDeposits: true
     DepositAddressesResponse:
       summary: Deposit addresses
       value:

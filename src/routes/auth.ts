@@ -1,6 +1,8 @@
 import express, { type Request } from "express";
 import { clone, createId, db, publicUser } from "../data/store";
 import { requireAuth } from "../middleware/auth";
+import { idempotency } from "../middleware/idempotency";
+import { rateLimit } from "../middleware/rate-limit";
 import { createRecoveryCodes, recoveryCodeCount, verifyAndConsumeRecoveryCode } from "../services/recovery-codes";
 import { createKycUpload, type KycUploadRequest } from "../services/storage";
 import { createSession, findSessionByRefreshToken, rotateSession, tokenMetadata } from "../services/tokens";
@@ -20,6 +22,9 @@ import {
 
 export const authRouter = express.Router();
 const TWO_FACTOR_MAX_ATTEMPTS = 5;
+const authLimiter = rateLimit({ keyPrefix: "auth", windowMs: 60 * 1000, maxRequests: 20 });
+const otpLimiter = rateLimit({ keyPrefix: "otp", windowMs: 60 * 1000, maxRequests: 5 });
+const kycLimiter = rateLimit({ keyPrefix: "kyc", windowMs: 60 * 1000, maxRequests: 10 });
 
 interface LoginBody {
   loginType?: "email" | "phone";
@@ -127,7 +132,7 @@ authRouter.post("/logout", requireAuth, (req, res) => {
   return ok(res, { loggedOut: true });
 });
 
-authRouter.post("/refresh", (req: Request<unknown, unknown, RefreshBody>, res) => {
+authRouter.post("/refresh", authLimiter, (req: Request<unknown, unknown, RefreshBody>, res) => {
   if (!isNonEmptyString(req.body.refreshToken, 20, 200)) {
     return badRequest(res, "refreshToken is required.", "INVALID_REFRESH_TOKEN");
   }
@@ -167,7 +172,7 @@ authRouter.post("/refresh", (req: Request<unknown, unknown, RefreshBody>, res) =
   return ok(res, authResponse(user, nextSession));
 });
 
-authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res) => {
+authRouter.post("/register", authLimiter, (req: Request<unknown, unknown, RegisterBody>, res) => {
   const { fullName, email, phone, password } = req.body;
   if (!fullName || !email || !phone || !password) {
     return badRequest(res, "fullName, email, phone, and password are required.");
@@ -243,7 +248,7 @@ authRouter.post("/register", (req: Request<unknown, unknown, RegisterBody>, res)
   return created(res, authResponse(user, session));
 });
 
-authRouter.post("/login", (req: Request<unknown, unknown, LoginBody>, res) => {
+authRouter.post("/login", authLimiter, (req: Request<unknown, unknown, LoginBody>, res) => {
   const identifier = req.body.identifier || req.body.email;
   const loginType = req.body.loginType || (req.body.email ? "email" : undefined);
   const { password } = req.body;
@@ -321,7 +326,7 @@ authRouter.post("/2fa/enable", requireAuth, (req: Request<unknown, unknown, { co
   });
 });
 
-authRouter.post("/2fa/verify", (req: Request<unknown, unknown, TwoFactorVerifyBody>, res) => {
+authRouter.post("/2fa/verify", authLimiter, (req: Request<unknown, unknown, TwoFactorVerifyBody>, res) => {
   const { challengeId, code, recoveryCode } = req.body;
   if (!challengeId || (!code && !recoveryCode)) {
     return badRequest(res, "challengeId and either code or recoveryCode are required.");
@@ -406,7 +411,7 @@ authRouter.post("/2fa/disable", requireAuth, (req: Request<unknown, unknown, { p
   return ok(res, { enabled: false, recoveryCodeCount: recoveryCodeCount(req.user) });
 });
 
-authRouter.post("/otp/request", (req: Request<unknown, unknown, { email?: string }>, res) => {
+authRouter.post("/otp/request", otpLimiter, (req: Request<unknown, unknown, { email?: string }>, res) => {
   if (!req.body.email || !isEmail(req.body.email)) {
     return badRequest(res, "email must be a valid email address.", "INVALID_EMAIL");
   }
@@ -418,7 +423,7 @@ authRouter.post("/otp/request", (req: Request<unknown, unknown, { email?: string
   });
 });
 
-authRouter.post("/otp/verify", (req: Request<unknown, unknown, VerifyOtpBody>, res) => {
+authRouter.post("/otp/verify", otpLimiter, (req: Request<unknown, unknown, VerifyOtpBody>, res) => {
   if (!req.body.email || !isEmail(req.body.email) || !req.body.code) {
     return badRequest(res, "a valid email and code are required.");
   }
@@ -430,7 +435,7 @@ authRouter.post("/otp/verify", (req: Request<unknown, unknown, VerifyOtpBody>, r
   return ok(res, { verified: true });
 });
 
-authRouter.post("/kyc/uploads", requireAuth, (req: Request<unknown, unknown, KycUploadRequest>, res) => {
+authRouter.post("/kyc/uploads", requireAuth, kycLimiter, (req: Request<unknown, unknown, KycUploadRequest>, res) => {
   const upload = createKycUpload(req.user.id, req.body);
   if (!upload) {
     return badRequest(res, "fileName and contentType are required.");
@@ -439,7 +444,7 @@ authRouter.post("/kyc/uploads", requireAuth, (req: Request<unknown, unknown, Kyc
   return created(res, upload);
 });
 
-authRouter.post("/kyc", requireAuth, (req: Request<unknown, unknown, KycBody>, res) => {
+authRouter.post("/kyc", requireAuth, kycLimiter, idempotency("kyc.submit"), (req: Request<unknown, unknown, KycBody>, res) => {
   const { legalName, country, documentType, documentNumber, selfieImageUrl, documentImageUrl } = req.body;
 
   if (!legalName || !country || !documentType || !documentNumber) {

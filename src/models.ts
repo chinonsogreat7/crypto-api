@@ -17,6 +17,7 @@ export type AssetSymbol =
   | "MATIC"
   | "LINK";
 export type KycStatus = "not_started" | "pending" | "approved" | "rejected";
+export type VerificationTier = "starter" | "pending_review" | "verified";
 export type TransactionType = "buy" | "sell" | "swap" | "deposit" | "withdrawal";
 export type TransactionStatus = "pending" | "completed" | "failed" | "cancelled" | "requires_review";
 export type UserRole = "customer" | "admin";
@@ -56,7 +57,9 @@ export interface User {
   createdAt: string;
 }
 
-export type PublicUser = Omit<User, "password" | "pin" | "twoFactorSecret" | "twoFactorRecoveryCodes">;
+export type PublicUser = Omit<User, "password" | "pin" | "twoFactorSecret" | "twoFactorRecoveryCodes"> & {
+  verification: VerificationProfile;
+};
 
 export interface UserSettings {
   language: "en";
@@ -64,6 +67,24 @@ export interface UserSettings {
   theme: "system" | "light" | "dark";
   pushNotifications: boolean;
   biometricEnabled: boolean;
+}
+
+export interface TransactionLimits {
+  depositPerTransactionUsd: number;
+  tradePerTransactionUsd: number;
+  withdrawalPerTransactionUsd: number;
+  dailyWithdrawalUsd: number;
+}
+
+export interface VerificationProfile {
+  status: KycStatus;
+  tier: VerificationTier;
+  level: number;
+  label: string;
+  limits: TransactionLimits;
+  canTrade: boolean;
+  canWithdraw: boolean;
+  canUseSandboxDeposits: boolean;
 }
 
 export interface Session {
