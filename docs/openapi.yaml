@@ -518,6 +518,14 @@ paths:
             type: string
             enum: [asc, desc]
           example: desc
+        - in: query
+          name: include
+          required: false
+          description: Include optional list-row extras. Use `sparkline` to render small charts without fetching each asset detail.
+          schema:
+            type: string
+            enum: [sparkline]
+          example: sparkline
       responses:
         "200":
           description: Asset list
@@ -526,6 +534,8 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/AssetListResponse"
+                withSparkline:
+                  $ref: "#/components/examples/AssetListWithSparklineResponse"
   /market/assets/{symbol}:
     get:
       tags: [Market]
@@ -541,11 +551,96 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/AssetDetailResponse"
+  /market/assets/{symbol}/candles:
+    get:
+      tags: [Market]
+      security: []
+      summary: Get simulated candlestick chart data
+      parameters:
+        - $ref: "#/components/parameters/Symbol"
+        - in: query
+          name: interval
+          required: false
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 1h, 1d]
+          example: 1m
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+          example: 50
+      responses:
+        "200":
+          description: Candle list
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/MarketCandlesResponse"
+  /market/assets/{symbol}/order-book:
+    get:
+      tags: [Market]
+      security: []
+      summary: Get simulated order book levels
+      parameters:
+        - $ref: "#/components/parameters/Symbol"
+        - in: query
+          name: levels
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+          example: 12
+      responses:
+        "200":
+          description: Order book
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/MarketOrderBookResponse"
+  /market/assets/{symbol}/trades:
+    get:
+      tags: [Market]
+      security: []
+      summary: Get simulated recent market trades
+      parameters:
+        - $ref: "#/components/parameters/Symbol"
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          example: 30
+      responses:
+        "200":
+          description: Recent market trades
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/MarketTradesResponse"
   /market/trending:
     get:
       tags: [Market]
       security: []
       summary: List trending assets
+      parameters:
+        - in: query
+          name: include
+          required: false
+          description: Trending assets include `sparkline` by default. Use `none` for the lighter row response.
+          schema:
+            type: string
+            enum: [sparkline, none]
+          example: sparkline
       responses:
         "200":
           description: Trending assets
@@ -553,7 +648,7 @@ paths:
             application/json:
               examples:
                 success:
-                  $ref: "#/components/examples/AssetListResponse"
+                  $ref: "#/components/examples/AssetListWithSparklineResponse"
   /market/prices:
     get:
       tags: [Market]
@@ -1783,6 +1878,47 @@ components:
             iconUrl: /assets/eth.svg
         meta:
           count: 2
+    AssetListWithSparklineResponse:
+      summary: Asset list with row chart data
+      value:
+        data:
+          - id: asset_btc
+            symbol: BTC
+            name: Bitcoin
+            network: Bitcoin Testnet
+            priceUsd: 64200.5
+            change24h: 2.1
+            isActive: true
+            minBuyUsd: 10
+            minSellUsd: 10
+            iconUrl: /assets/btc.svg
+            sparkline:
+              - time: "2026-05-25T08:00:00.000Z"
+                priceUsd: 62916.49
+              - time: "2026-05-25T09:00:00.000Z"
+                priceUsd: 63879.5
+              - time: "2026-05-25T10:00:00.000Z"
+                priceUsd: 64200.5
+          - id: asset_eth
+            symbol: ETH
+            name: Ethereum
+            network: Ethereum Sepolia
+            priceUsd: 3100.25
+            change24h: -0.8
+            isActive: true
+            minBuyUsd: 10
+            minSellUsd: 10
+            iconUrl: /assets/eth.svg
+            sparkline:
+              - time: "2026-05-25T08:00:00.000Z"
+                priceUsd: 3125.26
+              - time: "2026-05-25T09:00:00.000Z"
+                priceUsd: 3112.43
+              - time: "2026-05-25T10:00:00.000Z"
+                priceUsd: 3100.25
+        meta:
+          count: 2
+          include: [sparkline]
     AssetDetailResponse:
       summary: Asset details with chart
       value:
@@ -1806,6 +1942,68 @@ components:
               priceUsd: 63879.5
             - time: "12:00"
               priceUsd: 64200.5
+    MarketCandlesResponse:
+      summary: Simulated candlestick data
+      value:
+        data:
+          - time: "2026-05-27T09:00:00.000Z"
+            openUsd: 63980.2
+            highUsd: 64220.15
+            lowUsd: 63840.05
+            closeUsd: 64110.4
+            volume: 0.0345
+          - time: "2026-05-27T09:01:00.000Z"
+            openUsd: 64110.4
+            highUsd: 64301.75
+            lowUsd: 64020.8
+            closeUsd: 64200.5
+            volume: 0.0361
+        meta:
+          count: 2
+          symbol: BTC
+          interval: 1m
+    MarketOrderBookResponse:
+      summary: Simulated order book
+      value:
+        data:
+          midPriceUsd: 64200.5
+          spreadUsd: 13.86
+          bids:
+            - priceUsd: 64193.57
+              amount: 0.03
+              total: 0.03
+            - priceUsd: 64186.64
+              amount: 0.0354
+              total: 0.0654
+          asks:
+            - priceUsd: 64207.43
+              amount: 0.03
+              total: 0.03
+            - priceUsd: 64214.36
+              amount: 0.0354
+              total: 0.0654
+        meta:
+          symbol: BTC
+          levels: 2
+    MarketTradesResponse:
+      summary: Simulated recent market trades
+      value:
+        data:
+          - id: mtrade_btc_1779872400000
+            side: buy
+            priceUsd: 64206.1
+            amount: 0.015
+            totalUsd: 963.09
+            createdAt: "2026-05-27T09:00:00.000Z"
+          - id: mtrade_btc_1779872388000
+            side: sell
+            priceUsd: 64194.2
+            amount: 0.0201
+            totalUsd: 1290.3
+            createdAt: "2026-05-27T08:59:48.000Z"
+        meta:
+          count: 2
+          symbol: BTC
     PriceFeedResponse:
       summary: Simulated live price feed
       value:

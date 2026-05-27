@@ -140,9 +140,27 @@ async function main() {
 
     await request("/market/assets");
     await requestText("/assets/btc.svg");
-    await request("/market/assets?page=1&limit=5&search=bit&sort=priceUsd&order=desc");
+    const assetsWithSparklineBody = await request("/market/assets?page=1&limit=5&search=bit&sort=priceUsd&order=desc&include=sparkline");
+    if (!Array.isArray(assetsWithSparklineBody.data[0]?.sparkline) || assetsWithSparklineBody.data[0].sparkline.length === 0) {
+      throw new Error("market assets did not return sparkline data when requested");
+    }
     await request("/market/prices");
-    await request("/market/trending");
+    const trendingBody = await request("/market/trending");
+    if (!Array.isArray(trendingBody.data[0]?.sparkline) || trendingBody.data[0].sparkline.length === 0) {
+      throw new Error("market trending did not return default sparkline data");
+    }
+    const candleBody = await request("/market/assets/BTC/candles?interval=1m&limit=5");
+    if (candleBody.meta.interval !== "1m" || candleBody.data.length !== 5 || typeof candleBody.data[0]?.closeUsd !== "number") {
+      throw new Error("market candles did not return expected candle data");
+    }
+    const orderBookBody = await request("/market/assets/BTC/order-book?levels=5");
+    if (orderBookBody.data.bids.length !== 5 || orderBookBody.data.asks.length !== 5 || typeof orderBookBody.data.spreadUsd !== "number") {
+      throw new Error("market order book did not return expected levels");
+    }
+    const marketTradesBody = await request("/market/assets/BTC/trades?limit=5");
+    if (marketTradesBody.data.length !== 5 || typeof marketTradesBody.data[0]?.totalUsd !== "number") {
+      throw new Error("market trades did not return expected recent trades");
+    }
     await request("/me", { headers: userHeaders });
     await expectBadRequest("/me", {
       method: "PATCH",

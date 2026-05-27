@@ -292,6 +292,16 @@ The backend runs a free classroom market simulator. Asset prices move automatica
 
 Supported asset logos are served by this backend at `/assets/:symbol.svg`, for example `/assets/btc.svg`. The seeded `iconUrl` fields already point to those backend-hosted SVG files so every student app uses the same visuals. The bundled SVGs are sourced from [CryptoLogos](https://cryptologos.cc/).
 
+Use `GET /market/assets?include=sparkline` when building list rows that need small chart previews. This avoids the N+1 request pattern where a screen fetches `/market/assets` and then calls `/market/assets/:symbol` for every coin just to draw row charts. `GET /market/trending` includes the same lightweight `sparkline` data by default for home screens and top-coin sections. Keep `GET /market/assets/:symbol` for the full detail screen chart.
+
+Trade screens that look like an exchange can use these simulated market-data endpoints:
+
+- `GET /market/assets/:symbol/candles?interval=1m&limit=50` for candlestick charts
+- `GET /market/assets/:symbol/order-book?levels=12` for bid and ask rows
+- `GET /market/assets/:symbol/trades?limit=30` for recent market trades
+
+These endpoints are still REST/polling friendly. For a beginner class, poll them using `meta.market.tickIntervalMs`; later, they can be upgraded to Server-Sent Events or WebSockets without changing the quote and execution flow.
+
 Students can poll this endpoint from the mobile app:
 
 ```http
