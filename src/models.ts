@@ -44,6 +44,7 @@ export interface User {
   role: UserRole;
   fullName: string;
   email: string;
+  emailVerified: boolean;
   phone: string;
   password: string;
   pin: string;

@@ -177,6 +177,29 @@ Content-Type: application/json
 
 Registration validates that `email` looks like an email address, `phone` uses international format such as `+2348010000001`, and `password` is at least 8 characters. This is intentionally strict so students learn to handle validation errors before sending weak data to the API.
 
+Registration does not return an access token or refresh token. The user must verify their email first:
+
+```json
+{
+  "data": {
+    "user": {
+      "id": "usr_...",
+      "email": "ada@example.com",
+      "emailVerified": false
+    },
+    "emailVerificationRequired": true,
+    "nextStep": "verify_email",
+    "otp": {
+      "requestPath": "/auth/otp/request",
+      "verifyPath": "/auth/otp/verify",
+      "expiresInSeconds": 300
+    }
+  }
+}
+```
+
+After registration, call `POST /auth/otp/request`, then `POST /auth/otp/verify` with the demo OTP code. OTP verification marks the email as verified and returns the first token pair for that newly verified account. Login is blocked with `EMAIL_NOT_VERIFIED` until this step is complete.
+
 ### Login
 
 ```http
@@ -192,7 +215,7 @@ Content-Type: application/json
 
 Use `loginType: "email"` when `identifier` is an email address, or `loginType: "phone"` when `identifier` is a phone number. The older `email` field still works for backward compatibility, but new apps should use `loginType` and `identifier`.
 
-Successful register, login, and 2FA verify responses now return both a short-lived access token and a longer-lived refresh token:
+Successful email verification, login, and 2FA verify responses return both a short-lived access token and a longer-lived refresh token:
 
 ```json
 {

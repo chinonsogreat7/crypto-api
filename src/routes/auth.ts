@@ -8,7 +8,7 @@ import { createKycUpload, type KycUploadRequest } from "../services/storage";
 import { createSession, findSessionByRefreshToken, rotateSession, tokenMetadata } from "../services/tokens";
 import { generateTotpSecret, otpauthUri, verifyTotpCode } from "../services/totp";
 import type { KycSubmission, Session, User } from "../models";
-import { badRequest, created, ok } from "../utils/http";
+import { badRequest, created, forbidden, ok } from "../utils/http";
 import {
   isEnumValue,
   isEmail,
@@ -96,6 +96,19 @@ function authResponse(user: User, session: Session) {
     token: session.token,
     refreshToken: session.refreshToken,
     ...tokenMetadata(session)
+  };
+}
+
+function registrationResponse(user: User) {
+  return {
+    user: publicUser(user),
+    emailVerificationRequired: !user.emailVerified,
+    nextStep: "verify_email",
+    otp: {
+      requestPath: "/auth/otp/request",
+      verifyPath: "/auth/otp/verify",
+      expiresInSeconds: 300
+    }
   };
 }
 
@@ -310,6 +323,7 @@ authRouter.post("/register", authLimiter, (req: Request<unknown, unknown, Regist
     role: "customer",
     fullName: fullName.trim(),
     email: normalizedEmail,
+    emailVerified: false,
     phone: normalizedPhone,
     password,
     pin: "0000",
@@ -330,7 +344,6 @@ authRouter.post("/register", authLimiter, (req: Request<unknown, unknown, Regist
   };
 
   db.users.push(user);
-  const session = createSession(user);
   db.wallets.push({
     id: createId("wallet"),
     userId: user.id,
@@ -346,7 +359,7 @@ authRouter.post("/register", authLimiter, (req: Request<unknown, unknown, Regist
     balances: [{ assetSymbol: "USD", available: 1000, locked: 0 }]
   });
 
-  return created(res, authResponse(user, session));
+  return created(res, registrationResponse(user));
 });
 
 authRouter.post("/login", authLimiter, (req: Request<unknown, unknown, LoginBody>, res) => {
@@ -378,6 +391,10 @@ authRouter.post("/login", authLimiter, (req: Request<unknown, unknown, LoginBody
         message: "Login details or password is incorrect."
       }
     });
+  }
+
+  if (!user.emailVerified) {
+    return forbidden(res, "Verify your email before signing in.", "EMAIL_NOT_VERIFIED");
   }
 
   if (user.twoFactorEnabled && user.twoFactorSecret) {
@@ -533,7 +550,21 @@ authRouter.post("/otp/verify", otpLimiter, (req: Request<unknown, unknown, Verif
     return badRequest(res, "Invalid OTP code.", "INVALID_OTP");
   }
 
-  return ok(res, { verified: true });
+  const user = db.users.find((item) => item.email === normalizeEmail(req.body.email as string));
+  if (!user) {
+    return badRequest(res, "No account was found for this email address.", "ACCOUNT_NOT_FOUND");
+  }
+
+  if (user.emailVerified) {
+    return ok(res, { verified: true, emailVerified: true });
+  }
+
+  user.emailVerified = true;
+  const session = createSession(user);
+  return ok(res, {
+    verified: true,
+    ...authResponse(user, session)
+  });
 });
 
 authRouter.post("/kyc/uploads", requireAuth, kycLimiter, (req: Request<unknown, unknown, KycUploadRequest>, res) => {

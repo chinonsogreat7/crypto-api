@@ -135,6 +135,7 @@ export async function loadDatabase(): Promise<Database> {
       role: user.role as UserRole,
       fullName: user.fullName,
       email: user.email,
+      emailVerified: user.emailVerified ?? true,
       phone: user.phone,
       password: user.password,
       pin: user.pin,

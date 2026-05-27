@@ -121,20 +121,40 @@ async function main() {
         password: "password123"
       })
     }, "invalid registration phone");
+    const sessionStudentEmail = `session-${Date.now()}@cryptoclass.test`;
+    const sessionStudentPhone = `+23480${Math.floor(10000000 + Math.random() * 89999999)}`;
     const newUserBody = await request("/auth/register", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         fullName: "Session Student",
-        email: `session-${Date.now()}@cryptoclass.test`,
-        phone: `+23480${Math.floor(10000000 + Math.random() * 89999999)}`,
+        email: sessionStudentEmail,
+        phone: sessionStudentPhone,
         password: "password123"
       })
     });
-    if (!newUserBody.data.accessToken || !newUserBody.data.refreshToken) {
-      throw new Error("registration did not return accessToken and refreshToken");
+    if (newUserBody.data.accessToken || newUserBody.data.refreshToken || !newUserBody.data.emailVerificationRequired) {
+      throw new Error("registration should require email verification and should not return tokens");
     }
-    const newUserHeaders = { authorization: `Bearer ${newUserBody.data.accessToken}` };
+    await expectStatus("/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ loginType: "email", identifier: sessionStudentEmail, password: "password123" })
+    }, 403, "login before email verification");
+    await request("/auth/otp/request", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: sessionStudentEmail })
+    });
+    const verifiedUserBody = await request("/auth/otp/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: sessionStudentEmail, code: "123456" })
+    });
+    if (!verifiedUserBody.data.verified || !verifiedUserBody.data.accessToken || !verifiedUserBody.data.refreshToken) {
+      throw new Error("email verification did not return accessToken and refreshToken");
+    }
+    const newUserHeaders = { authorization: `Bearer ${verifiedUserBody.data.accessToken}` };
     await expectStatus("/trade/quotes", {
       method: "POST",
       headers: { ...newUserHeaders, "content-type": "application/json" },
@@ -148,12 +168,12 @@ async function main() {
     const refreshBody = await request("/auth/refresh", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ refreshToken: newUserBody.data.refreshToken })
+      body: JSON.stringify({ refreshToken: verifiedUserBody.data.refreshToken })
     });
     await expectStatus("/auth/refresh", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ refreshToken: newUserBody.data.refreshToken })
+      body: JSON.stringify({ refreshToken: verifiedUserBody.data.refreshToken })
     }, 401, "reusing rotated refresh token");
     const sessionHeaders = { authorization: `Bearer ${refreshBody.data.accessToken}` };
     await request("/auth/session", { headers: sessionHeaders });

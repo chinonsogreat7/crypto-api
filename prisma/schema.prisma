@@ -12,6 +12,7 @@ model User {
   role           String
   fullName       String
   email          String   @unique
+  emailVerified  Boolean  @default(true)
   phone          String
   password       String
   pin            String

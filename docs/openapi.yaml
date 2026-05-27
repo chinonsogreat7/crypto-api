@@ -118,12 +118,12 @@ paths:
                   example: password123
       responses:
         "201":
-          description: User, access token, and refresh token
+          description: Registered user. Email verification is required before tokens are issued.
           content:
             application/json:
               examples:
                 success:
-                  $ref: "#/components/examples/AuthResponse"
+                  $ref: "#/components/examples/RegisterResponse"
   /auth/login:
     post:
       tags: [Auth]
@@ -394,7 +394,7 @@ paths:
                   example: "123456"
       responses:
         "200":
-          description: Verification result
+          description: Email verified, with user tokens
           content:
             application/json:
               examples:
@@ -1815,6 +1815,47 @@ components:
             code: PHONE_EXISTS
             message: A user with this phone number already exists.
           canRegister: false
+    RegisterResponse:
+      summary: Registered user awaiting email verification
+      value:
+        data:
+          user:
+            id: usr_new
+            role: customer
+            fullName: Ada Student
+            email: ada@example.com
+            emailVerified: false
+            phone: "+2348010000001"
+            twoFactorEnabled: false
+            kycStatus: not_started
+            verification:
+              status: not_started
+              tier: starter
+              level: 0
+              label: Starter
+              limits:
+                depositPerTransactionUsd: 100
+                tradePerTransactionUsd: 0
+                withdrawalPerTransactionUsd: 0
+                dailyWithdrawalUsd: 0
+              canTrade: false
+              canWithdraw: false
+              canUseSandboxDeposits: true
+            avatarUrl: null
+            watchlist: [BTC, ETH]
+            settings:
+              language: en
+              fiatCurrency: USD
+              theme: system
+              pushNotifications: true
+              biometricEnabled: false
+            createdAt: "2026-05-27T10:00:00.000Z"
+          emailVerificationRequired: true
+          nextStep: verify_email
+          otp:
+            requestPath: /auth/otp/request
+            verifyPath: /auth/otp/verify
+            expiresInSeconds: 300
     AuthResponse:
       summary: Authenticated user
       value:
@@ -1824,6 +1865,7 @@ components:
             role: customer
             fullName: Ada Student
             email: student@cryptoclass.test
+            emailVerified: true
             phone: "+2348010000001"
             twoFactorEnabled: false
             kycStatus: approved
@@ -1902,10 +1944,24 @@ components:
           demoCode: "123456"
           expiresInSeconds: 300
     OtpVerifyResponse:
-      summary: OTP verified
+      summary: OTP verified and authenticated
       value:
         data:
           verified: true
+          user:
+            id: usr_student
+            role: customer
+            fullName: Ada Student
+            email: student@cryptoclass.test
+            emailVerified: true
+            phone: "+2348010000001"
+          token: demo-user-token
+          accessToken: demo-user-token
+          refreshToken: demo-user-refresh-token
+          tokenType: Bearer
+          expiresAt: "2099-01-01T00:00:00.000Z"
+          expiresInSeconds: 2300000000
+          refreshTokenExpiresAt: "2099-01-31T00:00:00.000Z"
     KycResponse:
       summary: KYC submission
       value:
