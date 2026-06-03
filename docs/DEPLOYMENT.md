@@ -77,6 +77,16 @@ Value: postgresql://USER:PASSWORD@HOST.neon.tech/DATABASE?sslmode=require
 
 After saving, choose **Save, rebuild, and deploy** so Prisma can create the database tables during the next build.
 
+Optional live market pricing:
+
+```text
+MARKET_PRICE_SOURCE=coingecko
+MARKET_LIVE_REFRESH_INTERVAL_MS=60000
+COINGECKO_API_KEY=your_demo_api_key
+```
+
+`MARKET_PRICE_SOURCE=coingecko` is the default. The API falls back to the classroom simulator if CoinGecko is unavailable. Set `MARKET_PRICE_SOURCE=simulated` only when you intentionally want seeded demo prices instead of real market prices.
+
 Optional Expo push delivery:
 
 ```text

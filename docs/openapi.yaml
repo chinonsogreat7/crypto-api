@@ -16,7 +16,7 @@ tags:
   - name: Auth
     description: Registration, login, OTP, authenticator 2FA, and KYC submission.
   - name: Market
-    description: Asset catalog, trending assets, and simulated live market prices.
+    description: Asset catalog, trending assets, and live market prices with simulator fallback.
   - name: Profile
     description: Customer profile, settings, watchlist, devices, and notifications.
   - name: Wallet
@@ -686,10 +686,10 @@ paths:
     get:
       tags: [Market]
       security: []
-      summary: List simulated live market prices
+      summary: List live market prices
       responses:
         "200":
-          description: Simulated live price feed
+          description: Live price feed with provider metadata
           content:
             application/json:
               examples:
@@ -699,18 +699,18 @@ paths:
     get:
       tags: [Market]
       security: []
-      summary: Stream simulated live market prices
+      summary: Stream live market prices
       description: Server-Sent Events stream for mobile list prices, sparklines, and lightweight chart refreshes. Events are named `prices`.
       responses:
         "200":
-          description: SSE stream of simulated live price rows
+          description: SSE stream of live price rows
           content:
             text/event-stream:
               schema:
                 type: string
               example: |
                 event: prices
-                data: {"data":[{"symbol":"BTC","name":"Bitcoin","priceUsd":64200.5,"change24h":2.1,"updatedAt":"2026-05-25T10:00:00.000Z"}],"meta":{"count":1,"market":{"mode":"simulated_live_market","source":"backend price simulator","lastUpdatedAt":"2026-05-25T10:00:00.000Z","tickIntervalMs":10000}}}
+                data: {"data":[{"symbol":"BTC","name":"Bitcoin","priceUsd":64200.5,"change24h":2.1,"updatedAt":"2026-05-25T10:00:00.000Z"}],"meta":{"count":1,"market":{"mode":"live_market","source":"CoinGecko simple price API","lastUpdatedAt":"2026-05-25T10:00:00.000Z","tickIntervalMs":60000,"lastError":null}}}
   /me:
     get:
       tags: [Profile]
@@ -2219,7 +2219,7 @@ components:
           count: 2
           symbol: BTC
     PriceFeedResponse:
-      summary: Simulated live price feed
+      summary: Live price feed
       value:
         data:
           - symbol: BTC
@@ -2235,10 +2235,11 @@ components:
         meta:
           count: 2
           market:
-            mode: simulated_live_market
-            source: backend price simulator
+            mode: live_market
+            source: CoinGecko simple price API
             lastUpdatedAt: "2026-05-03T14:20:10.000Z"
-            tickIntervalMs: 10000
+            tickIntervalMs: 60000
+            lastError: null
     ProfileResponse:
       summary: Current profile
       value:

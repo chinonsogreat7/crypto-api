@@ -94,7 +94,7 @@ List responses include `meta` with the request ID. Paginated list responses also
 | Home dashboard | `GET /wallet`, `GET /market/trending`, `GET /me/notifications` |
 | Market list | `GET /market/assets` |
 | Asset details | `GET /market/assets/:symbol` |
-| Simulated live prices | `GET /market/prices` |
+| Live market prices | `GET /market/prices` |
 | Watchlist | `GET /me/watchlist`, `POST /me/watchlist/:symbol`, `DELETE /me/watchlist/:symbol` |
 | Wallet | `GET /wallet` |
 | Portfolio chart | `GET /wallet/portfolio/history` |
@@ -352,15 +352,29 @@ Content-Type: application/json
 }
 ```
 
-## Simulated Live Market Prices
+## Live Market Prices
 
-The backend runs a free classroom market simulator. Asset prices move automatically every few seconds, and all wallet values, trade quotes, market lists, and admin asset screens read from the same changing prices.
+By default, the backend refreshes supported asset prices from CoinGecko and all wallet values, trade quotes, market lists, and admin asset screens read from those same prices. If the live provider is unavailable, the API falls back to the classroom price simulator so lessons and demos keep working.
+
+Market source details are returned in `meta.market`:
+
+```json
+{
+  "mode": "live_market",
+  "source": "CoinGecko simple price API",
+  "lastUpdatedAt": "2026-06-03T10:00:00.000Z",
+  "tickIntervalMs": 60000,
+  "lastError": null
+}
+```
+
+Set `MARKET_PRICE_SOURCE=simulated` if you intentionally want the older classroom-only simulator. You can also set `MARKET_LIVE_REFRESH_INTERVAL_MS`, `COINGECKO_API_KEY`, or `COINGECKO_PRO_API_KEY` in deployment.
 
 Supported asset logos are served by this backend at `/assets/:symbol.svg`, for example `/assets/btc.svg`. The seeded `iconUrl` fields already point to those backend-hosted SVG files so every student app uses the same visuals. The bundled SVGs are sourced from [CryptoLogos](https://cryptologos.cc/).
 
 Use `GET /market/assets?include=sparkline` when building list rows that need small chart previews. This avoids the N+1 request pattern where a screen fetches `/market/assets` and then calls `/market/assets/:symbol` for every coin just to draw row charts. `GET /market/trending` includes the same lightweight `sparkline` data by default for home screens and top-coin sections. Keep `GET /market/assets/:symbol` for the full detail screen chart.
 
-Trade screens that look like an exchange can use these simulated market-data endpoints:
+Trade screens that look like an exchange can use these market-data endpoints:
 
 - `GET /market/assets/:symbol/candles?interval=1m&limit=50` for candlestick charts
 - `GET /market/assets/:symbol/order-book?levels=12` for bid and ask rows
@@ -368,7 +382,7 @@ Trade screens that look like an exchange can use these simulated market-data end
 
 These endpoints are still REST/polling friendly. For a beginner class, poll them using `meta.market.tickIntervalMs`; later, they can be upgraded to Server-Sent Events or WebSockets without changing the quote and execution flow.
 
-Asset detail screens should use `GET /market/assets/:symbol`. In addition to the base asset record and chart points, the response includes simulated `stats` such as `marketCapUsd`, `volume24hUsd`, `circulatingSupply`, `maxSupply`, `allTimeHighUsd`, `high24hUsd`, `low24hUsd`, `about`, `websiteUrl`, and `explorerUrl`. These are classroom/demo values, not live exchange data.
+Asset detail screens should use `GET /market/assets/:symbol`. In addition to the base asset record and chart points, the response includes derived `stats` such as `marketCapUsd`, `volume24hUsd`, `circulatingSupply`, `maxSupply`, `allTimeHighUsd`, `high24hUsd`, `low24hUsd`, `about`, `websiteUrl`, and `explorerUrl`. Prices and 24h change come from the live feed when available; supply/about metadata is still classroom-friendly reference data.
 
 Students can poll this endpoint from the mobile app:
 
@@ -406,7 +420,7 @@ For market list screens, use `GET /market/trending`. It includes row `sparkline`
 
 That means the green “Top Gainer” card in the design should come from `meta.featured`, while the list rows should come from `data`.
 
-This is not connected to real exchanges. It is designed to behave like a live market feed without API keys, rate limits, or real-money risk.
+The API still does not execute real exchange trades. The live feed is for display, quotes, and classroom realism; buy/sell/swap execution remains sandboxed.
 
 ## Verification Levels And Limits
 
@@ -592,7 +606,7 @@ Content-Type: application/json
 }
 ```
 
-Use `GET /me/price-alerts`, `PATCH /me/price-alerts/:alertId`, and `DELETE /me/price-alerts/:alertId` for the rest of the CRUD flow. Active alerts trigger automatically when simulated market prices cross the target, then the API creates a `price_alert` notification.
+Use `GET /me/price-alerts`, `PATCH /me/price-alerts/:alertId`, and `DELETE /me/price-alerts/:alertId` for the rest of the CRUD flow. Active alerts trigger automatically when market prices cross the target, then the API creates a `price_alert` notification.
 
 ## KYC Upload Storage
 

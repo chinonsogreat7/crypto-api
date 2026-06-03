@@ -3,8 +3,29 @@ import type { Asset, AssetSymbol } from "../models";
 import { evaluatePriceAlerts } from "../services/price-alerts";
 
 const TICK_INTERVAL_MS = Number(process.env.MARKET_TICK_INTERVAL_MS || 10000);
+const PRICE_SOURCE = (process.env.MARKET_PRICE_SOURCE || "coingecko").toLowerCase();
+const LIVE_REFRESH_INTERVAL_MS = Number(process.env.MARKET_LIVE_REFRESH_INTERVAL_MS || 60_000);
+const COINGECKO_PUBLIC_URL = "https://api.coingecko.com/api/v3/simple/price";
+const COINGECKO_PRO_URL = "https://pro-api.coingecko.com/api/v3/simple/price";
 const MAX_HISTORY_POINTS = 48;
 const STABLE_COINS = new Set(["USDC", "USDT"]);
+const COINGECKO_IDS_BY_SYMBOL: Record<AssetSymbol, string> = {
+  BTC: "bitcoin",
+  ETH: "ethereum",
+  USDC: "usd-coin",
+  USDT: "tether",
+  BNB: "binancecoin",
+  SOL: "solana",
+  XRP: "ripple",
+  ADA: "cardano",
+  DOGE: "dogecoin",
+  AVAX: "avalanche-2",
+  DOT: "polkadot",
+  LTC: "litecoin",
+  TRX: "tron",
+  MATIC: "matic-network",
+  LINK: "chainlink"
+};
 const SUPPLY_BY_SYMBOL: Record<AssetSymbol, { circulatingSupply: number; maxSupply: number | null; allTimeHighUsd: number; about: string; websiteUrl: string; explorerUrl: string }> = {
   BTC: {
     circulatingSupply: 19_700_000,
@@ -185,13 +206,19 @@ interface MarketState {
   isRunning: boolean;
   lastUpdatedAt: string | null;
   tickIntervalMs: number;
+  mode: "live_market" | "simulated_live_market";
+  source: string;
+  lastError: string | null;
   history: Partial<Record<AssetSymbol, MarketPoint[]>>;
 }
 
 export const marketState: MarketState = {
   isRunning: false,
   lastUpdatedAt: null,
-  tickIntervalMs: TICK_INTERVAL_MS,
+  tickIntervalMs: PRICE_SOURCE === "simulated" ? TICK_INTERVAL_MS : LIVE_REFRESH_INTERVAL_MS,
+  mode: PRICE_SOURCE === "simulated" ? "simulated_live_market" : "live_market",
+  source: PRICE_SOURCE === "simulated" ? "backend price simulator" : "CoinGecko simple price API",
+  lastError: null,
   history: {}
 };
 
@@ -252,7 +279,84 @@ function seedHistory(): void {
   marketState.lastUpdatedAt = updatedAt;
 }
 
-export function simulateMarketTick(): void {
+function coingeckoApiKey(): { header: string; value: string } | null {
+  if (process.env.COINGECKO_PRO_API_KEY) {
+    return { header: "x-cg-pro-api-key", value: process.env.COINGECKO_PRO_API_KEY };
+  }
+
+  if (process.env.COINGECKO_API_KEY) {
+    return { header: "x-cg-demo-api-key", value: process.env.COINGECKO_API_KEY };
+  }
+
+  return null;
+}
+
+function coingeckoUrl(): string {
+  const ids = [...new Set(db.assets.map((asset) => COINGECKO_IDS_BY_SYMBOL[asset.symbol]).filter(Boolean))];
+  const baseUrl = process.env.COINGECKO_PRO_API_KEY ? COINGECKO_PRO_URL : COINGECKO_PUBLIC_URL;
+  const params = new URLSearchParams({
+    ids: ids.join(","),
+    vs_currencies: "usd",
+    include_24hr_change: "true",
+    include_last_updated_at: "true"
+  });
+
+  return `${baseUrl}?${params.toString()}`;
+}
+
+function applyLiveMarketPrice(asset: Asset, data: unknown, fallbackUpdatedAt: string): boolean {
+  if (!data || typeof data !== "object") return false;
+  const row = data as { usd?: unknown; usd_24h_change?: unknown; last_updated_at?: unknown };
+  if (typeof row.usd !== "number" || !Number.isFinite(row.usd) || row.usd <= 0) return false;
+
+  asset.priceUsd = roundPrice(row.usd);
+  if (typeof row.usd_24h_change === "number" && Number.isFinite(row.usd_24h_change)) {
+    asset.change24h = Number(row.usd_24h_change.toFixed(2));
+  }
+
+  const updatedAt =
+    typeof row.last_updated_at === "number" && Number.isFinite(row.last_updated_at)
+      ? new Date(row.last_updated_at * 1000).toISOString()
+      : fallbackUpdatedAt;
+  pushHistory(asset, updatedAt);
+  return true;
+}
+
+export async function refreshLiveMarketPrices(): Promise<void> {
+  const updatedAt = new Date().toISOString();
+  const key = coingeckoApiKey();
+  const response = await fetch(coingeckoUrl(), {
+    headers: key ? { [key.header]: key.value } : undefined
+  });
+
+  if (!response.ok) {
+    throw new Error(`CoinGecko returned ${response.status}`);
+  }
+
+  const payload = (await response.json()) as Record<string, unknown>;
+  let updatedCount = 0;
+  for (const asset of db.assets) {
+    if (!asset.isActive) continue;
+    const coinId = COINGECKO_IDS_BY_SYMBOL[asset.symbol];
+    if (coinId && applyLiveMarketPrice(asset, payload[coinId], updatedAt)) {
+      updatedCount += 1;
+    }
+  }
+
+  if (updatedCount === 0) {
+    throw new Error("CoinGecko response did not include supported assets.");
+  }
+
+  marketState.mode = "live_market";
+  marketState.source = "CoinGecko simple price API";
+  marketState.lastError = null;
+  marketState.lastUpdatedAt = updatedAt;
+  evaluatePriceAlerts({ persist: true }).catch((error) => {
+    console.error("Failed to evaluate price alerts", error);
+  });
+}
+
+export function simulateMarketTick(source = "backend price simulator"): void {
   const updatedAt = new Date().toISOString();
 
   for (const asset of db.assets) {
@@ -270,10 +374,24 @@ export function simulateMarketTick(): void {
     pushHistory(asset, updatedAt);
   }
 
+  marketState.mode = source === "backend price simulator" ? "simulated_live_market" : marketState.mode;
+  marketState.source = source;
   marketState.lastUpdatedAt = updatedAt;
   evaluatePriceAlerts({ persist: true }).catch((error) => {
     console.error("Failed to evaluate price alerts", error);
   });
+}
+
+async function refreshLiveMarketPricesWithFallback(): Promise<void> {
+  try {
+    await refreshLiveMarketPrices();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown live price error";
+    marketState.lastError = message;
+    marketState.source = "CoinGecko unavailable; using backend price simulator fallback";
+    simulateMarketTick(marketState.source);
+    console.error("Failed to refresh live market prices", error);
+  }
 }
 
 export function startMarketSimulator(): void {
@@ -281,15 +399,28 @@ export function startMarketSimulator(): void {
 
   seedHistory();
   marketState.isRunning = true;
-  timer = setInterval(simulateMarketTick, TICK_INTERVAL_MS);
+  if (PRICE_SOURCE === "simulated") {
+    marketState.mode = "simulated_live_market";
+    marketState.source = "backend price simulator";
+    marketState.tickIntervalMs = TICK_INTERVAL_MS;
+    timer = setInterval(simulateMarketTick, TICK_INTERVAL_MS);
+    return;
+  }
+
+  marketState.mode = "live_market";
+  marketState.source = "CoinGecko simple price API";
+  marketState.tickIntervalMs = LIVE_REFRESH_INTERVAL_MS;
+  refreshLiveMarketPricesWithFallback();
+  timer = setInterval(refreshLiveMarketPricesWithFallback, LIVE_REFRESH_INTERVAL_MS);
 }
 
 export function marketMeta() {
   return {
-    mode: "simulated_live_market",
-    source: "backend price simulator",
+    mode: marketState.mode,
+    source: marketState.source,
     lastUpdatedAt: marketState.lastUpdatedAt,
-    tickIntervalMs: marketState.tickIntervalMs
+    tickIntervalMs: marketState.tickIntervalMs,
+    lastError: marketState.lastError
   };
 }
 
