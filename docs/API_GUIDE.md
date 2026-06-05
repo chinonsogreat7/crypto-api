@@ -333,11 +333,12 @@ Content-Type: application/json
   "documentType": "national_id",
   "documentNumber": "NIN-000-000",
   "selfieImageUrl": "https://example.com/uploads/ada-selfie.jpg",
-  "documentImageUrl": "https://example.com/uploads/ada-national-id.jpg"
+  "documentImageUrl": "https://example.com/uploads/ada-national-id-front.jpg",
+  "documentBackImageUrl": "https://example.com/uploads/ada-national-id-back.jpg"
 }
 ```
 
-`selfieImageUrl` and `documentImageUrl` are optional URL fields for classroom demos. In a production app, these would normally come from a secure upload service instead of arbitrary public URLs.
+`selfieImageUrl` and `documentImageUrl` are required. `documentImageUrl` is the front of the ID document. `documentBackImageUrl` is optional and should be sent when the selected document has a back side. In production-style flows, these URLs should come from the KYC upload flow instead of arbitrary public URLs.
 
 The user cannot execute trades until KYC is approved. For the classroom demo, approve it with:
 

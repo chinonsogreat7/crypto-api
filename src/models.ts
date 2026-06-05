@@ -178,6 +178,7 @@ export interface KycSubmission {
   documentNumber: string;
   selfieImageUrl: string | null;
   documentImageUrl: string | null;
+  documentBackImageUrl: string | null;
   status: KycStatus;
   submittedAt: string;
   reviewedAt: string | null;

@@ -129,6 +129,7 @@ model KycSubmission {
   documentNumber String
   selfieImageUrl String?
   documentImageUrl String?
+  documentBackImageUrl String?
   status         String
   submittedAt    DateTime
   reviewedAt     DateTime?

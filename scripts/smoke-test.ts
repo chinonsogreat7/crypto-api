@@ -355,6 +355,32 @@ async function main() {
         throw new Error(`Unexpected Cloudinary upload instructions: ${JSON.stringify(uploadBody.data)}`);
       }
     }
+    await expectBadRequest("/auth/kyc", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json", "idempotency-key": `smoke-kyc-missing-images-${Date.now()}` },
+      body: JSON.stringify({
+        legalName: "Ada Student",
+        country: "Nigeria",
+        documentType: "national_id",
+        documentNumber: "NIN-000-000"
+      })
+    }, "missing required kyc images");
+    const kycSubmissionBody = await request("/auth/kyc", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json", "idempotency-key": `smoke-kyc-submit-${Date.now()}` },
+      body: JSON.stringify({
+        legalName: "Ada Student",
+        country: "Nigeria",
+        documentType: "national_id",
+        documentNumber: "NIN-000-000",
+        selfieImageUrl: "https://example.com/uploads/ada-selfie.jpg",
+        documentImageUrl: "https://example.com/uploads/ada-id-front.jpg",
+        documentBackImageUrl: "https://example.com/uploads/ada-id-back.jpg"
+      })
+    });
+    if (kycSubmissionBody.data.selfieImageUrl === null || kycSubmissionBody.data.documentImageUrl === null || kycSubmissionBody.data.documentBackImageUrl === null) {
+      throw new Error("kyc submission did not persist required front/selfie images and optional back image");
+    }
     await requestText("/admin-ui/");
     await request("/admin/dashboard", { headers: adminHeaders });
     const adminUsersBody = await request("/admin/users?page=1&limit=2&q=Ada", { headers: adminHeaders });

@@ -412,7 +412,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [legalName, country, documentType, documentNumber]
+              required: [legalName, country, documentType, documentNumber, selfieImageUrl, documentImageUrl]
               properties:
                 legalName:
                   type: string
@@ -432,7 +432,13 @@ paths:
                   example: https://example.com/uploads/ada-selfie.jpg
                 documentImageUrl:
                   type: string
-                  example: https://example.com/uploads/ada-national-id.jpg
+                  description: Front image URL for the identity document.
+                  example: https://example.com/uploads/ada-national-id-front.jpg
+                documentBackImageUrl:
+                  type: string
+                  nullable: true
+                  description: Optional back image URL for documents that have a reverse side.
+                  example: https://example.com/uploads/ada-national-id-back.jpg
       responses:
         "201":
           description: KYC submission
@@ -1974,6 +1980,7 @@ components:
           documentNumber: NIN-000-000
           selfieImageUrl: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=240&h=240&fit=crop&crop=faces
           documentImageUrl: https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=480&h=300&fit=crop
+          documentBackImageUrl: null
           status: pending
           submittedAt: "2026-05-03T14:05:00.000Z"
           reviewedAt: null
@@ -2601,6 +2608,7 @@ components:
             documentNumber: NIN-000-000
             selfieImageUrl: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=240&h=240&fit=crop&crop=faces
             documentImageUrl: https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=480&h=300&fit=crop
+            documentBackImageUrl: null
             status: pending
             submittedAt: "2026-05-03T14:05:00.000Z"
             reviewedAt: null

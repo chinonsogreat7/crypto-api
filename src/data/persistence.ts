@@ -205,6 +205,7 @@ export async function loadDatabase(): Promise<Database> {
       documentNumber: kyc.documentNumber,
       selfieImageUrl: kyc.selfieImageUrl,
       documentImageUrl: kyc.documentImageUrl,
+      documentBackImageUrl: kyc.documentBackImageUrl,
       status: kyc.status as KycStatus,
       submittedAt: kyc.submittedAt.toISOString(),
       reviewedAt: toIso(kyc.reviewedAt),

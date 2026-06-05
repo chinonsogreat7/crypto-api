@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS "KycSubmission" (
   "documentNumber" TEXT NOT NULL,
   "selfieImageUrl" TEXT,
   "documentImageUrl" TEXT,
+  "documentBackImageUrl" TEXT,
   "status" TEXT NOT NULL,
   "submittedAt" DATETIME NOT NULL,
   "reviewedAt" DATETIME,
@@ -226,6 +227,7 @@ function addColumnIfMissing(table: string, column: string, definition: string): 
 runSql(sql);
 addColumnIfMissing("KycSubmission", "selfieImageUrl", "TEXT");
 addColumnIfMissing("KycSubmission", "documentImageUrl", "TEXT");
+addColumnIfMissing("KycSubmission", "documentBackImageUrl", "TEXT");
 addColumnIfMissing("User", "twoFactorEnabled", "BOOLEAN NOT NULL DEFAULT false");
 addColumnIfMissing("User", "twoFactorSecret", "TEXT");
 addColumnIfMissing("User", "twoFactorRecoveryCodes", "TEXT NOT NULL DEFAULT '[]'");

@@ -77,6 +77,7 @@ interface KycBody {
   documentNumber?: string;
   selfieImageUrl?: string;
   documentImageUrl?: string;
+  documentBackImageUrl?: string;
 }
 
 function findUserByLogin(loginType: "email" | "phone", identifier: string): User | undefined {
@@ -577,7 +578,7 @@ authRouter.post("/kyc/uploads", requireAuth, kycLimiter, (req: Request<unknown, 
 });
 
 authRouter.post("/kyc", requireAuth, kycLimiter, idempotency("kyc.submit"), (req: Request<unknown, unknown, KycBody>, res) => {
-  const { legalName, country, documentType, documentNumber, selfieImageUrl, documentImageUrl } = req.body;
+  const { legalName, country, documentType, documentNumber, selfieImageUrl, documentImageUrl, documentBackImageUrl } = req.body;
 
   if (!legalName || !country || !documentType || !documentNumber) {
     return badRequest(res, "legalName, country, documentType, and documentNumber are required.");
@@ -591,8 +592,16 @@ authRouter.post("/kyc", requireAuth, kycLimiter, idempotency("kyc.submit"), (req
     return badRequest(res, "documentType must be national_id, passport, or drivers_license.", "INVALID_DOCUMENT_TYPE");
   }
 
-  if ((selfieImageUrl && !isHttpUrlOrStoragePath(selfieImageUrl)) || (documentImageUrl && !isHttpUrlOrStoragePath(documentImageUrl))) {
-    return badRequest(res, "selfieImageUrl and documentImageUrl must be http(s) URLs or demo /storage/files paths.", "INVALID_KYC_IMAGE_URL");
+  if (!selfieImageUrl || !documentImageUrl) {
+    return badRequest(res, "selfieImageUrl and documentImageUrl are required.", "KYC_IMAGES_REQUIRED");
+  }
+
+  if (
+    !isHttpUrlOrStoragePath(selfieImageUrl) ||
+    !isHttpUrlOrStoragePath(documentImageUrl) ||
+    (documentBackImageUrl !== undefined && documentBackImageUrl !== "" && !isHttpUrlOrStoragePath(documentBackImageUrl))
+  ) {
+    return badRequest(res, "KYC image URLs must be http(s) URLs or demo /storage/files paths.", "INVALID_KYC_IMAGE_URL");
   }
 
   const submission: KycSubmission = {
@@ -602,8 +611,9 @@ authRouter.post("/kyc", requireAuth, kycLimiter, idempotency("kyc.submit"), (req
     country: country.trim(),
     documentType,
     documentNumber: documentNumber.trim(),
-    selfieImageUrl: selfieImageUrl || null,
-    documentImageUrl: documentImageUrl || null,
+    selfieImageUrl,
+    documentImageUrl,
+    documentBackImageUrl: documentBackImageUrl || null,
     status: "pending",
     submittedAt: new Date().toISOString(),
     reviewedAt: null,
