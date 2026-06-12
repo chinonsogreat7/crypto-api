@@ -82,6 +82,8 @@ List responses include `meta` with the request ID. Paginated list responses also
 
 ## Screen-To-Endpoint Map
 
+For classroom progress reports, use [STUDENT_PROGRESS_TRACKER.md](./STUDENT_PROGRESS_TRACKER.md). It gives students a checklist for completed screens, connected APIs, tested states, blockers, and remaining work.
+
 | Screen or flow | Endpoint(s) |
 | --- | --- |
 | Splash and onboarding | Static app content for now |
