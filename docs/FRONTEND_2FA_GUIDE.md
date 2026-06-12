@@ -190,7 +190,7 @@ Success response returns the normal login session:
     "token": "demo-token",
     "refreshToken": "demo-refresh-token",
     "tokenType": "Bearer",
-    "expiresInSeconds": 86400
+    "expiresInSeconds": 1800
   }
 }
 ```

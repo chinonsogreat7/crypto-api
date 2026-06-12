@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { db } from "../data/store";
 import type { Session, User } from "../models";
 
-const ACCESS_TOKEN_TTL_SECONDS = Number(process.env.ACCESS_TOKEN_TTL_SECONDS || 24 * 60 * 60);
+const ACCESS_TOKEN_TTL_SECONDS = Number(process.env.ACCESS_TOKEN_TTL_SECONDS || 30 * 60);
 const REFRESH_TOKEN_TTL_SECONDS = Number(process.env.REFRESH_TOKEN_TTL_SECONDS || 30 * 24 * 60 * 60);
 
 function expiresAt(seconds: number): string {

@@ -218,7 +218,7 @@ Content-Type: application/json
 
 Use `loginType: "email"` when `identifier` is an email address, or `loginType: "phone"` when `identifier` is a phone number. The older `email` field still works for backward compatibility, but new apps should use `loginType` and `identifier`.
 
-Successful email verification, login, and 2FA verify responses return both an access token and a longer-lived refresh token. By default, classroom access tokens last 24 hours, and production deployments can override this with `ACCESS_TOKEN_TTL_SECONDS`.
+Successful email verification, login, and 2FA verify responses return both an access token and a longer-lived refresh token. By default, access tokens last 30 minutes, and deployments can override this with `ACCESS_TOKEN_TTL_SECONDS`.
 
 ```json
 {
@@ -227,8 +227,8 @@ Successful email verification, login, and 2FA verify responses return both an ac
     "token": "access_...",
     "refreshToken": "refresh_...",
     "tokenType": "Bearer",
-    "expiresAt": "2026-05-21T12:00:00.000Z",
-    "expiresInSeconds": 86400,
+    "expiresAt": "2026-05-20T12:30:00.000Z",
+    "expiresInSeconds": 1800,
     "refreshTokenExpiresAt": "2026-06-19T12:00:00.000Z"
   }
 }

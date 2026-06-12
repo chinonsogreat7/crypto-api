@@ -90,11 +90,11 @@ COINGECKO_API_KEY=your_demo_api_key
 Optional token lifetime settings:
 
 ```text
-ACCESS_TOKEN_TTL_SECONDS=86400
+ACCESS_TOKEN_TTL_SECONDS=1800
 REFRESH_TOKEN_TTL_SECONDS=2592000
 ```
 
-`ACCESS_TOKEN_TTL_SECONDS` defaults to 24 hours for classroom convenience. `REFRESH_TOKEN_TTL_SECONDS` defaults to 30 days.
+`ACCESS_TOKEN_TTL_SECONDS` defaults to 30 minutes. `REFRESH_TOKEN_TTL_SECONDS` defaults to 30 days.
 
 Optional Expo push delivery:
 
