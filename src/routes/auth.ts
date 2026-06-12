@@ -4,7 +4,7 @@ import { requireAuth } from "../middleware/auth";
 import { idempotency } from "../middleware/idempotency";
 import { rateLimit } from "../middleware/rate-limit";
 import { createRecoveryCodes, recoveryCodeCount, verifyAndConsumeRecoveryCode } from "../services/recovery-codes";
-import { createKycUpload, type KycUploadRequest } from "../services/storage";
+import { createKycUpload, uploadKycFile, type KycUploadRequest } from "../services/storage";
 import { createSession, findSessionByRefreshToken, rotateSession, tokenMetadata } from "../services/tokens";
 import { generateTotpSecret, otpauthUri, verifyTotpCode } from "../services/totp";
 import type { KycSubmission, Session, User } from "../models";
@@ -26,6 +26,7 @@ const authLimiter = rateLimit({ keyPrefix: "auth", windowMs: 60 * 1000, maxReque
 const signupValidationLimiter = rateLimit({ keyPrefix: "signup_validation", windowMs: 60 * 1000, maxRequests: 60 });
 const otpLimiter = rateLimit({ keyPrefix: "otp", windowMs: 60 * 1000, maxRequests: 5 });
 const kycLimiter = rateLimit({ keyPrefix: "kyc", windowMs: 60 * 1000, maxRequests: 10 });
+const kycUploadBody = express.raw({ type: "multipart/form-data", limit: "8mb" });
 
 interface LoginBody {
   loginType?: "email" | "phone";
@@ -80,6 +81,13 @@ interface KycBody {
   documentBackImageUrl?: string;
 }
 
+interface MultipartFilePart {
+  fieldName: string;
+  fileName: string;
+  contentType: string;
+  buffer: Buffer;
+}
+
 function findUserByLogin(loginType: "email" | "phone", identifier: string): User | undefined {
   const trimmed = identifier.trim();
   if (loginType === "email") {
@@ -111,6 +119,54 @@ function registrationResponse(user: User) {
       expiresInSeconds: 300
     }
   };
+}
+
+function parseMultipartFormData(contentType: string | undefined, body: unknown): { fields: Record<string, string>; files: MultipartFilePart[] } | null {
+  if (!contentType || !Buffer.isBuffer(body)) return null;
+  const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
+  const boundary = boundaryMatch?.[1] || boundaryMatch?.[2];
+  if (!boundary) return null;
+
+  const fields: Record<string, string> = {};
+  const files: MultipartFilePart[] = [];
+  const delimiter = `--${boundary}`;
+  const raw = body.toString("latin1");
+  const segments = raw.split(delimiter).slice(1);
+
+  for (const segment of segments) {
+    if (!segment || segment.startsWith("--")) continue;
+    const normalized = segment.startsWith("\r\n") ? segment.slice(2) : segment;
+    const headerEnd = normalized.indexOf("\r\n\r\n");
+    if (headerEnd === -1) continue;
+
+    const headerText = normalized.slice(0, headerEnd);
+    let partBody = normalized.slice(headerEnd + 4);
+    if (partBody.endsWith("\r\n")) partBody = partBody.slice(0, -2);
+
+    const headers = Object.fromEntries(
+      headerText.split("\r\n").map((line) => {
+        const [name, ...valueParts] = line.split(":");
+        return [name.trim().toLowerCase(), valueParts.join(":").trim()];
+      })
+    );
+    const disposition = headers["content-disposition"] || "";
+    const name = disposition.match(/name="([^"]+)"/)?.[1];
+    if (!name) continue;
+
+    const fileName = disposition.match(/filename="([^"]*)"/)?.[1];
+    if (fileName) {
+      files.push({
+        fieldName: name,
+        fileName,
+        contentType: headers["content-type"] || "application/octet-stream",
+        buffer: Buffer.from(partBody, "latin1")
+      });
+    } else {
+      fields[name] = partBody;
+    }
+  }
+
+  return { fields, files };
 }
 
 function createTwoFactorChallenge(user: User) {
@@ -572,7 +628,37 @@ authRouter.post("/otp/verify", otpLimiter, (req: Request<unknown, unknown, Verif
   });
 });
 
-authRouter.post("/kyc/uploads", requireAuth, kycLimiter, (req: Request<unknown, unknown, KycUploadRequest>, res) => {
+authRouter.post("/kyc/uploads", requireAuth, kycLimiter, kycUploadBody, async (req: Request<unknown, unknown, KycUploadRequest>, res) => {
+  if (req.is("multipart/form-data")) {
+    const parsed = parseMultipartFormData(req.headers["content-type"], req.body);
+    const file = parsed?.files.find((item) => item.fieldName === "file") || parsed?.files[0];
+    if (!parsed || !file) {
+      return badRequest(res, "multipart/form-data must include a file field.", "KYC_FILE_REQUIRED");
+    }
+
+    const uploaded = await uploadKycFile(req.user.id, {
+      fileName: file.fileName,
+      contentType: file.contentType,
+      documentKind: parsed.fields.documentKind as KycUploadRequest["documentKind"],
+      buffer: file.buffer
+    });
+    if (!uploaded) {
+      return badRequest(res, "file and documentKind are invalid.", "INVALID_KYC_UPLOAD");
+    }
+
+    if (uploaded.uploaded === false) {
+      return res.status(502).json({
+        error: {
+          code: "KYC_UPLOAD_FAILED",
+          message: "Unable to upload KYC file to storage provider.",
+          details: "error" in uploaded ? uploaded.error : null
+        }
+      });
+    }
+
+    return created(res, uploaded);
+  }
+
   const upload = createKycUpload(req.user.id, req.body);
   if (!upload) {
     return badRequest(res, "fileName and contentType are required.");

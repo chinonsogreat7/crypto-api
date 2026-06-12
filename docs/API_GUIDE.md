@@ -664,13 +664,46 @@ Use `GET /me/price-alerts`, `PATCH /me/price-alerts/:alertId`, and `DELETE /me/p
 
 ## KYC Upload Storage
 
-KYC uploads use a storage URL flow. In local teaching mode, the API returns demo `/storage/...` URLs. When Cloudinary is configured, the same endpoint returns signed direct-upload instructions for Cloudinary and places files in per-user folders:
+KYC uploads should use `multipart/form-data` so the API receives the actual file bytes. When Cloudinary is configured, the API uploads the file to Cloudinary and returns the hosted `publicUrl`. In local teaching mode, the API accepts the file and returns demo `/storage/...` metadata.
 
 ```text
 kyc/<userId>/<documentKind>
 ```
 
 Configure Cloudinary with either `CLOUDINARY_URL` or the split variables `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET`. You can override the root folder with `CLOUDINARY_KYC_FOLDER`.
+
+```http
+POST /auth/kyc/uploads
+Authorization: Bearer demo-user-token
+Content-Type: multipart/form-data
+```
+
+Form fields:
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `file` | Yes | The actual image/document file |
+| `documentKind` | No | `selfie`, `document_front`, or `document_back`. Defaults to `document_front` |
+
+Example response:
+
+```json
+{
+  "data": {
+    "uploaded": true,
+    "provider": "cloudinary",
+    "storageKey": "kyc/usr_student/document_front/upload_abc123-student-national-id",
+    "publicUrl": "https://res.cloudinary.com/dbh1f4yce/image/upload/kyc/usr_student/document_front/upload_abc123-student-national-id",
+    "fileName": "student-national-id.png",
+    "contentType": "image/png",
+    "sizeBytes": 42000
+  }
+}
+```
+
+The returned `publicUrl` should be used in `POST /auth/kyc` as `selfieImageUrl`, `documentImageUrl`, or `documentBackImageUrl`.
+
+For advanced lessons, the same endpoint still supports the older JSON instruction flow:
 
 ```http
 POST /auth/kyc/uploads
@@ -684,7 +717,7 @@ Content-Type: application/json
 }
 ```
 
-The response returns `uploadUrl`, `method`, and either demo headers or Cloudinary `formFields`. In the mobile app, request upload instructions, upload the file, then submit the resulting Cloudinary `secure_url` or demo `publicUrl` in `POST /auth/kyc`.
+That response returns `uploadUrl`, `method`, and either demo headers or Cloudinary `formFields` so a client can upload directly to the storage provider.
 
 ## Admin Responsibilities
 

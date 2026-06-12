@@ -463,11 +463,24 @@ paths:
   /auth/kyc/uploads:
     post:
       tags: [Auth]
-      summary: Create KYC upload instructions
-      description: Returns demo local upload instructions by default, or signed Cloudinary direct-upload instructions when Cloudinary environment variables are configured. Cloudinary uploads are grouped by user in kyc/{userId}/{documentKind}.
+      summary: Upload a KYC file or create upload instructions
+      description: Prefer multipart/form-data to send the actual file to the API. When Cloudinary is configured, the API uploads the file to Cloudinary in kyc/{userId}/{documentKind}. JSON is still supported for advanced direct-upload-instruction lessons.
       requestBody:
         required: true
         content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Image or document file to upload.
+                documentKind:
+                  type: string
+                  enum: [selfie, document_front, document_back]
+                  example: document_front
           application/json:
             schema:
               type: object
@@ -485,10 +498,36 @@ paths:
                   example: document_front
       responses:
         "201":
-          description: Upload instructions
+          description: Uploaded file metadata or upload instructions
           content:
             application/json:
               examples:
+                multipartCloudinary:
+                  value:
+                    data:
+                      uploadId: upload_abc123
+                      provider: cloudinary
+                      uploaded: true
+                      directUpload: true
+                      storageKey: kyc/usr_student/document_front/upload_abc123-student-national-id
+                      publicUrl: https://res.cloudinary.com/dbh1f4yce/image/upload/kyc/usr_student/document_front/upload_abc123-student-national-id
+                      publicId: kyc/usr_student/document_front/upload_abc123-student-national-id
+                      fileName: student-national-id.png
+                      contentType: image/png
+                      sizeBytes: 42000
+                multipartDemo:
+                  value:
+                    data:
+                      uploadId: upload_abc123
+                      provider: demo_local_storage
+                      uploaded: true
+                      directUpload: true
+                      storageKey: kyc/usr_student/document_front/upload_abc123-student-national-id.png
+                      publicUrl: /storage/files/kyc/usr_student/document_front/upload_abc123-student-national-id.png
+                      fileName: student-national-id.png
+                      contentType: image/png
+                      sizeBytes: 42000
+                      note: Demo local storage accepted the file bytes but does not persist binary files. Configure Cloudinary for real hosted uploads.
                 demoStorage:
                   value:
                     data:

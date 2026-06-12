@@ -371,6 +371,17 @@ async function main() {
         throw new Error(`Unexpected Cloudinary upload instructions: ${JSON.stringify(uploadBody.data)}`);
       }
     }
+    const multipartUpload = new FormData();
+    multipartUpload.set("documentKind", "selfie");
+    multipartUpload.set("file", new Blob(["demo selfie bytes"], { type: "image/png" }), "student-selfie.png");
+    const multipartUploadBody = await request("/auth/kyc/uploads", {
+      method: "POST",
+      headers: userHeaders,
+      body: multipartUpload
+    });
+    if (!multipartUploadBody.data.uploaded || !multipartUploadBody.data.publicUrl || multipartUploadBody.data.contentType !== "image/png") {
+      throw new Error(`multipart KYC upload did not return uploaded file metadata: ${JSON.stringify(multipartUploadBody.data)}`);
+    }
     await expectBadRequest("/auth/kyc", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json", "idempotency-key": `smoke-kyc-missing-images-${Date.now()}` },

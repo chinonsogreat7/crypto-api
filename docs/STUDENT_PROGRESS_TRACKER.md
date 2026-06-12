@@ -62,7 +62,7 @@ Design rule: match the existing Figma style. Do not create a new design system, 
 | Security | 2FA status/recovery | `GET /auth/2fa/status`, `POST /auth/2fa/recovery-codes/regenerate`, `POST /auth/2fa/disable` |  |  |  |
 | Home | Dashboard | `GET /wallet`, `GET /market/trending`, `GET /me/notifications` |  |  |  |
 | KYC | Start/status | `GET /me` |  |  |  |
-| KYC | Upload instructions | `POST /auth/kyc/uploads` |  |  |  |
+| KYC | Upload file | `POST /auth/kyc/uploads` |  |  | Use multipart `file` upload |
 | KYC | Submit review | `POST /auth/kyc` |  |  |  |
 | Market | Asset list | `GET /market/assets`, `GET /market/assets?include=sparkline` |  |  |  |
 | Market | Trending | `GET /market/trending` |  |  |  |
@@ -126,10 +126,9 @@ Design rule: match the existing Figma style. Do not create a new design system, 
 
 | Task | Endpoint | Status | Notes |
 | --- | --- | --- | --- |
-| Create upload instructions | `POST /auth/kyc/uploads` |  | Uses Cloudinary when env vars are configured |
-| Upload selfie image | Cloudinary or demo upload URL |  | Required |
-| Upload document front image | Cloudinary or demo upload URL |  | Required |
-| Upload document back image | Cloudinary or demo upload URL |  | Optional |
+| Upload selfie image | `POST /auth/kyc/uploads` |  | Required multipart `file` upload |
+| Upload document front image | `POST /auth/kyc/uploads` |  | Required multipart `file` upload |
+| Upload document back image | `POST /auth/kyc/uploads` |  | Optional multipart `file` upload |
 | Submit KYC | `POST /auth/kyc` |  | KYC happens inside the app, not during account creation |
 
 ### Market

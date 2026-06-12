@@ -14,6 +14,13 @@ export interface KycUploadRequest {
   documentKind?: "selfie" | "document_front" | "document_back";
 }
 
+export interface KycUploadFile {
+  fileName: string;
+  contentType: string;
+  buffer: Buffer;
+  documentKind?: "selfie" | "document_front" | "document_back";
+}
+
 interface CloudinaryConfig {
   apiKey: string;
   apiSecret: string;
@@ -100,7 +107,7 @@ function fileBaseName(fileName: string): string {
   return baseName || "upload";
 }
 
-export function createKycUpload(userId: string, body: KycUploadRequest) {
+function validateUploadRequest(body: KycUploadRequest) {
   const fileName = body.fileName?.trim();
   const contentType = body.contentType?.trim();
   const documentKind = body.documentKind || "document_front";
@@ -112,6 +119,14 @@ export function createKycUpload(userId: string, body: KycUploadRequest) {
   if (!isEnumValue(documentKind, ["selfie", "document_front", "document_back"] as const)) {
     return null;
   }
+
+  return { fileName, contentType, documentKind };
+}
+
+export function createKycUpload(userId: string, body: KycUploadRequest) {
+  const validated = validateUploadRequest(body);
+  if (!validated) return null;
+  const { fileName, contentType, documentKind } = validated;
 
   const uploadId = createId("upload");
   const config = cloudinaryConfig();
@@ -163,5 +178,75 @@ export function createKycUpload(userId: string, body: KycUploadRequest) {
       "content-type": contentType
     },
     expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString()
+  };
+}
+
+export async function uploadKycFile(userId: string, file: KycUploadFile) {
+  const validated = validateUploadRequest(file);
+  if (!validated || !file.buffer.length) return null;
+
+  const upload = createKycUpload(userId, validated);
+  if (!upload) return null;
+
+  if (upload.provider !== "cloudinary" || !("formFields" in upload)) {
+    return {
+      ...upload,
+      uploaded: true,
+      directUpload: true,
+      fileName: validated.fileName,
+      contentType: validated.contentType,
+      sizeBytes: file.buffer.length,
+      note: "Demo local storage accepted the file bytes but does not persist binary files. Configure Cloudinary for real hosted uploads."
+    };
+  }
+
+  const formData = new FormData();
+  const cloudinaryUpload = upload as typeof upload & { formFields: Record<string, string | number>; uploadUrl: string; publicUrl: string; publicId: string };
+  for (const [key, value] of Object.entries(cloudinaryUpload.formFields)) {
+    formData.append(key, String(value));
+  }
+  const fileBytes = file.buffer.buffer.slice(file.buffer.byteOffset, file.buffer.byteOffset + file.buffer.byteLength) as ArrayBuffer;
+  formData.append("file", new Blob([fileBytes], { type: validated.contentType }), validated.fileName);
+
+  const { formFields: _formFields, ...cloudinaryMetadata } = cloudinaryUpload;
+  let response: Response;
+  try {
+    response = await fetch(cloudinaryUpload.uploadUrl, {
+      method: "POST",
+      body: formData
+    });
+  } catch (error) {
+    return {
+      ...cloudinaryMetadata,
+      uploaded: false,
+      directUpload: true,
+      error: {
+        message: "Cloudinary upload request failed.",
+        detail: error instanceof Error ? error.message : String(error)
+      }
+    };
+  }
+  const result = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+
+  if (!response.ok || !result) {
+    return {
+      ...cloudinaryMetadata,
+      uploaded: false,
+      directUpload: true,
+      statusCode: response.status,
+      error: result || { message: "Cloudinary upload failed." }
+    };
+  }
+
+  return {
+    ...cloudinaryMetadata,
+    uploaded: true,
+    directUpload: true,
+    fileName: validated.fileName,
+    contentType: validated.contentType,
+    sizeBytes: typeof result.bytes === "number" ? result.bytes : file.buffer.length,
+    publicUrl: typeof result.secure_url === "string" ? result.secure_url : cloudinaryUpload.publicUrl,
+    publicId: typeof result.public_id === "string" ? result.public_id : cloudinaryUpload.publicId,
+    cloudinary: result
   };
 }
