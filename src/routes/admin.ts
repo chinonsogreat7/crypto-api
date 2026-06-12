@@ -173,8 +173,8 @@ adminRouter.get("/transactions", (req, res) => {
   if (status && !isEnumValue(status, ["pending", "completed", "failed", "cancelled", "requires_review"] as const)) {
     return badRequest(res, "status must be pending, completed, failed, cancelled, or requires_review.", "INVALID_TRANSACTION_STATUS");
   }
-  if (type && !isEnumValue(type, ["buy", "sell", "swap", "deposit", "withdrawal"] as const)) {
-    return badRequest(res, "type must be buy, sell, swap, deposit, or withdrawal.", "INVALID_TRANSACTION_TYPE");
+  if (type && !isEnumValue(type, ["buy", "sell", "swap", "deposit", "withdrawal", "transfer"] as const)) {
+    return badRequest(res, "type must be buy, sell, swap, deposit, withdrawal, or transfer.", "INVALID_TRANSACTION_TYPE");
   }
 
   const transactions = db.transactions

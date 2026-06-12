@@ -1,21 +1,22 @@
 import express, { type Request } from "express";
 import { saveCurrentDatabase } from "../data/persistence";
-import { clone, convertUsdToFiat, createId, db, findBalance, getAssetPrice, getWallet, portfolioValueUsd } from "../data/store";
+import { activeAssetSymbols, clone, convertUsdToFiat, createId, db, findBalance, getAssetPrice, getWallet, isActiveAssetSymbol, portfolioValueUsd } from "../data/store";
 import { requireAuth } from "../middleware/auth";
 import { idempotency } from "../middleware/idempotency";
 import { rateLimit } from "../middleware/rate-limit";
 import { notifyUser } from "../services/notifications";
 import { limitExceededMessage, verificationProfileForUser } from "../services/verification";
-import type { AssetSymbol, WithdrawalRequest } from "../models";
+import type { AssetSymbol, Transaction, User, WithdrawalRequest } from "../models";
 import { badRequest, created, forbidden, notFound, ok } from "../utils/http";
 import { paginate, sortDirection } from "../utils/pagination";
-import { isAssetSymbol, isBlockchainAddress, isNonEmptyString, isPositiveNumber } from "../utils/validation";
+import { isBlockchainAddress, isEmail, isNonEmptyString, isPhoneNumber, isPin, isPositiveNumber, normalizeEmail, normalizePhone } from "../utils/validation";
 
 export const walletRouter = express.Router();
 
 walletRouter.use(requireAuth);
 const depositLimiter = rateLimit({ keyPrefix: "wallet.deposit", windowMs: 60 * 1000, maxRequests: 15 });
 const withdrawalLimiter = rateLimit({ keyPrefix: "wallet.withdrawal", windowMs: 60 * 1000, maxRequests: 10 });
+const transferLimiter = rateLimit({ keyPrefix: "wallet.transfer", windowMs: 60 * 1000, maxRequests: 15 });
 
 const DEFAULT_DEPOSIT_SETTLEMENT_SECONDS = Number(process.env.DEPOSIT_SETTLEMENT_SECONDS || 5);
 
@@ -60,6 +61,37 @@ function withdrawalUsedTodayUsd(userId: string): number {
     .filter((withdrawal) => withdrawal.userId === userId && withdrawal.status !== "rejected")
     .filter((withdrawal) => new Date(withdrawal.createdAt).getTime() >= startOfDay.getTime())
     .reduce((sum, withdrawal) => sum + withdrawal.amount * getAssetPrice(withdrawal.assetSymbol), 0);
+}
+
+function transferUsedTodayUsd(userId: string): number {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  return db.transactions
+    .filter((transaction) => transaction.userId === userId && transaction.type === "transfer" && transaction.status === "completed")
+    .filter((transaction) => transaction.note?.startsWith("Internal transfer to "))
+    .filter((transaction) => new Date(transaction.createdAt).getTime() >= startOfDay.getTime())
+    .reduce((sum, transaction) => sum + transaction.fromAmount * getAssetPrice(transaction.fromAsset), 0);
+}
+
+function recipientMatchesWalletAddress(user: User, recipient: string): boolean {
+  const wallet = db.wallets.find((item) => item.userId === user.id);
+  return Boolean(wallet?.depositAddresses.some((address) => address.address.toLowerCase() === recipient.toLowerCase()));
+}
+
+function findTransferRecipient(recipient: string, senderId: string): User | null {
+  const trimmed = recipient.trim();
+  if (!trimmed) return null;
+
+  const normalizedEmail = isEmail(trimmed) ? normalizeEmail(trimmed) : null;
+  const normalizedPhone = isPhoneNumber(trimmed) ? normalizePhone(trimmed) : null;
+
+  return (
+    db.users.find((user) => {
+      if (user.id === senderId || user.role !== "customer") return false;
+      return user.id === trimmed || user.email === normalizedEmail || user.phone === normalizedPhone || recipientMatchesWalletAddress(user, trimmed);
+    }) || null
+  );
 }
 
 walletRouter.get("/", (req, res) => {
@@ -198,16 +230,118 @@ walletRouter.post("/deposit/simulate", depositLimiter, idempotency("wallet.depos
   });
 });
 
+walletRouter.post("/transfers", transferLimiter, idempotency("wallet.transfer.create"), async (req: Request<unknown, unknown, { assetSymbol?: AssetSymbol; amount?: number; recipient?: string; pin?: string; note?: string }>, res) => {
+  const { assetSymbol, recipient, pin } = req.body;
+  const amount = req.body.amount;
+
+  if (!isActiveAssetSymbol(assetSymbol) || !isPositiveNumber(amount, 1_000_000) || !isNonEmptyString(recipient, 3, 254) || !isPin(pin)) {
+    return badRequest(res, `assetSymbol, amount, recipient, and transaction PIN are required. assetSymbol must be one of: ${activeAssetSymbols().join(", ")}.`, "INVALID_TRANSFER_REQUEST");
+  }
+
+  if (pin !== req.user.pin) {
+    return badRequest(res, "Invalid transaction PIN.", "INVALID_PIN");
+  }
+
+  const recipientUser = findTransferRecipient(recipient, req.user.id);
+  if (!recipientUser) {
+    return notFound(res, "Recipient was not found by email, phone, user id, or wallet address.", "RECIPIENT_NOT_FOUND");
+  }
+
+  const amountUsd = amount * getAssetPrice(assetSymbol);
+  const verification = verificationProfileForUser(req.user);
+  if (!verification.canWithdraw) {
+    return forbidden(res, "KYC must be approved before internal transfers.", "KYC_REQUIRED");
+  }
+
+  if (amountUsd > verification.limits.withdrawalPerTransactionUsd) {
+    return forbidden(res, limitExceededMessage("transfer", verification.limits.withdrawalPerTransactionUsd), "KYC_TRANSFER_LIMIT_EXCEEDED");
+  }
+
+  const usedTodayUsd = withdrawalUsedTodayUsd(req.user.id) + transferUsedTodayUsd(req.user.id);
+  if (usedTodayUsd + amountUsd > verification.limits.dailyWithdrawalUsd) {
+    return forbidden(res, `This transfer is above your remaining daily transfer limit of $${Math.max(0, verification.limits.dailyWithdrawalUsd - usedTodayUsd).toFixed(2)}.`, "KYC_DAILY_TRANSFER_LIMIT_EXCEEDED");
+  }
+
+  const senderWallet = getWallet(req.user.id);
+  const recipientWallet = getWallet(recipientUser.id);
+  const senderBalance = findBalance(senderWallet, assetSymbol);
+  const recipientBalance = findBalance(recipientWallet, assetSymbol);
+
+  if (senderBalance.available < amount) {
+    return badRequest(res, "Insufficient balance.", "INSUFFICIENT_BALANCE");
+  }
+
+  senderBalance.available -= amount;
+  recipientBalance.available += amount;
+
+  const now = new Date().toISOString();
+  const reference = `CRT-TRF-${Date.now()}`;
+  const senderTransaction: Transaction = {
+    id: createId("txn"),
+    userId: req.user.id,
+    type: "transfer",
+    status: "completed",
+    fromAsset: assetSymbol,
+    toAsset: assetSymbol,
+    fromAmount: amount,
+    toAmount: amount,
+    feeAmount: 0,
+    rate: 1,
+    reference,
+    note: `Internal transfer to ${recipientUser.email}`,
+    createdAt: now,
+    completedAt: now
+  };
+  const recipientTransaction: Transaction = {
+    ...senderTransaction,
+    id: createId("txn"),
+    userId: recipientUser.id,
+    note: `Internal transfer from ${req.user.email}`
+  };
+
+  db.transactions.unshift(recipientTransaction, senderTransaction);
+
+  await Promise.all([
+    notifyUser({
+      userId: req.user.id,
+      title: "Transfer sent",
+      body: `${amount} ${assetSymbol} was sent to ${recipientUser.fullName}.`,
+      type: "transaction",
+      data: { transactionId: senderTransaction.id, reference }
+    }),
+    notifyUser({
+      userId: recipientUser.id,
+      title: "Transfer received",
+      body: `${amount} ${assetSymbol} was received from ${req.user.fullName}.`,
+      type: "transaction",
+      data: { transactionId: recipientTransaction.id, reference }
+    })
+  ]);
+
+  return created(res, {
+    transfer: {
+      reference,
+      assetSymbol,
+      amount,
+      recipient: {
+        id: recipientUser.id,
+        fullName: recipientUser.fullName,
+        email: recipientUser.email,
+        phone: recipientUser.phone
+      }
+    },
+    transaction: senderTransaction,
+    recipientTransaction,
+    wallet: clone(senderWallet)
+  });
+});
+
 walletRouter.post("/withdrawals", withdrawalLimiter, idempotency("wallet.withdrawal.create"), (req: Request<unknown, unknown, { assetSymbol?: AssetSymbol; amount?: number; address?: string; network?: string }>, res) => {
   const { assetSymbol, address, network } = req.body;
   const amount = req.body.amount;
 
-  if (!isAssetSymbol(assetSymbol) || !isPositiveNumber(amount, 1_000_000) || !isBlockchainAddress(address) || !isNonEmptyString(network, 2, 60)) {
-    return badRequest(res, "assetSymbol, amount, address, and network are required.");
-  }
-
-  if (!db.assets.some((asset) => asset.symbol === assetSymbol && asset.isActive)) {
-    return badRequest(res, "assetSymbol is not supported.", "UNSUPPORTED_ASSET");
+  if (!isActiveAssetSymbol(assetSymbol) || !isPositiveNumber(amount, 1_000_000) || !isBlockchainAddress(address) || !isNonEmptyString(network, 2, 60)) {
+    return badRequest(res, `assetSymbol, amount, address, and network are required. assetSymbol must be one of: ${activeAssetSymbols().join(", ")}.`, "UNSUPPORTED_ASSET");
   }
 
   const amountUsd = amount * getAssetPrice(assetSymbol);

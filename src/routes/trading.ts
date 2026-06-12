@@ -2,18 +2,20 @@ import express, { type Request } from "express";
 import {
   addQuote,
   addTransaction,
+  activeAssetSymbols,
   createId,
   db,
   findBalance,
   getAssetPrice,
-  getWallet
+  getWallet,
+  isActiveAssetSymbol
 } from "../data/store";
 import { requireAuth } from "../middleware/auth";
 import { idempotency } from "../middleware/idempotency";
 import { rateLimit } from "../middleware/rate-limit";
 import { notifyUser } from "../services/notifications";
 import { limitExceededMessage, verificationProfileForUser } from "../services/verification";
-import type { AssetSymbol, FiatCurrency, Quote, Transaction } from "../models";
+import type { AssetSymbol, Quote, Transaction } from "../models";
 import { badRequest, created, forbidden, notFound, ok } from "../utils/http";
 import { isEnumValue, isPin, isPositiveNumber } from "../utils/validation";
 
@@ -27,8 +29,8 @@ type TradeType = "buy" | "sell" | "swap";
 
 interface QuoteBody {
   type?: TradeType;
-  fromAsset?: AssetSymbol | FiatCurrency;
-  toAsset?: AssetSymbol | FiatCurrency;
+  fromAsset?: AssetSymbol;
+  toAsset?: AssetSymbol;
   fromAmount?: number;
 }
 
@@ -58,6 +60,10 @@ tradingRouter.post("/quotes", quoteLimiter, (req: Request<unknown, unknown, Quot
 
   if (!isEnumValue(type, ["buy", "sell", "swap"] as const) || !fromAsset || !toAsset || !isPositiveNumber(fromAmount, 1_000_000)) {
     return badRequest(res, "type, fromAsset, toAsset, and fromAmount are required.");
+  }
+
+  if (!isActiveAssetSymbol(fromAsset) || !isActiveAssetSymbol(toAsset)) {
+    return badRequest(res, `fromAsset and toAsset must be active supported assets: ${activeAssetSymbols().join(", ")}.`, "UNSUPPORTED_ASSET");
   }
 
   if (fromAsset === toAsset) {

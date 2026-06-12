@@ -449,6 +449,11 @@ async function main() {
       headers: { ...userHeaders, "content-type": "application/json" },
       body: JSON.stringify({ assetSymbol: "ETH", amount: "0.05", address: "bad", network: "Ethereum Sepolia" })
     }, "invalid withdrawal");
+    await expectBadRequest("/wallet/transfers", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ assetSymbol: "FAKE", amount: 10, recipient: sessionStudentEmail, pin: "1234" })
+    }, "unsupported transfer asset");
 
     const depositIdempotencyKey = `smoke-deposit-${Date.now()}`;
     const depositBody = await request("/wallet/deposit/simulate", {
@@ -470,11 +475,31 @@ async function main() {
     await request(depositBody.data.pollingUrl, { headers: userHeaders });
     await request("/admin/deposits?page=1&limit=10&status=completed", { headers: adminHeaders });
 
+    const transferIdempotencyKey = `smoke-transfer-${Date.now()}`;
+    const transferBody = await request("/wallet/transfers", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json", "idempotency-key": transferIdempotencyKey },
+      body: JSON.stringify({ assetSymbol: "USDT", amount: 10, recipient: sessionStudentEmail, pin: "1234" })
+    });
+    const replayedTransferBody = await request("/wallet/transfers", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json", "idempotency-key": transferIdempotencyKey },
+      body: JSON.stringify({ assetSymbol: "USDT", amount: 10, recipient: sessionStudentEmail, pin: "1234" })
+    });
+    if (replayedTransferBody.data.transaction.id !== transferBody.data.transaction.id || transferBody.data.transfer.recipient.email !== sessionStudentEmail) {
+      throw new Error("transfer idempotency or recipient resolution did not work");
+    }
+
     await expectBadRequest("/trade/quotes", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
       body: JSON.stringify({ type: "buy", fromAsset: "USDT", toAsset: "BTC", fromAmount: "50" })
     }, "invalid quote amount");
+    await expectBadRequest("/trade/quotes", {
+      method: "POST",
+      headers: { ...userHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ type: "buy", fromAsset: "USDT", toAsset: "FAKE", fromAmount: 50 })
+    }, "unsupported quote asset");
     const quoteBody = await request("/trade/quotes", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },

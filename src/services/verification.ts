@@ -59,7 +59,7 @@ export function verificationProfileForUser(user: User): VerificationProfile {
   return verificationProfileForStatus(user.kycStatus);
 }
 
-export function limitExceededMessage(action: "deposit" | "trade" | "withdrawal", limitUsd: number): string {
+export function limitExceededMessage(action: "deposit" | "trade" | "withdrawal" | "transfer", limitUsd: number): string {
   if (limitUsd <= 0) {
     return `Complete identity verification before you can ${action}.`;
   }

@@ -349,7 +349,7 @@ authRouter.post("/register", authLimiter, (req: Request<unknown, unknown, Regist
     id: createId("wallet"),
     userId: user.id,
     fiatCurrency: "USD",
-    depositAddresses: defaultDepositAddresses(),
+    depositAddresses: defaultDepositAddresses(user.id),
     balances: [{ assetSymbol: "USDT", available: 1000, locked: 0 }]
   });
 

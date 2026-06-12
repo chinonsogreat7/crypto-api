@@ -74,6 +74,7 @@ Design rule: match the existing Figma style. Do not create a new design system, 
 | Wallet | Portfolio history | `GET /wallet/portfolio/history` |  |  |  |
 | Wallet | Deposit address | `GET /wallet/deposit-addresses`, `GET /wallet/deposit-addresses/:symbol` |  |  |  |
 | Wallet | Sandbox deposit | `POST /wallet/deposit/simulate` |  |  |  |
+| Wallet | Internal transfer | `POST /wallet/transfers` |  |  |  |
 | Wallet | Withdrawal | `POST /wallet/withdrawals` |  |  |  |
 | Wallet | Transaction history/detail | `GET /wallet/transactions`, `GET /wallet/transactions/:transactionId` |  |  |  |
 | Trade | Quote form | `POST /trade/quotes` |  |  |  |
@@ -240,4 +241,3 @@ Design rule: match the existing Figma style. Do not create a new design system, 
 | Notifications |  |  |  |  |
 | UI states |  |  |  |  |
 | Figma matching |  |  |  |  |
-

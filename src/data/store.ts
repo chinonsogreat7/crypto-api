@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import type {
   AssetSymbol,
   Database,
@@ -15,31 +15,48 @@ import { initialData } from "./initial-data";
 
 export const db: Database = clone(initialData);
 
-export function defaultDepositAddresses(): DepositAddress[] {
+function deterministicHex(userId: string, assetSymbol: string, length: number): string {
+  return createHash("sha256").update(`${userId}:${assetSymbol}:deposit-address`).digest("hex").slice(0, length);
+}
+
+function deterministicAddress(userId: string, assetSymbol: AssetSymbol): string {
+  if (assetSymbol === "BTC") {
+    return `tb1q${deterministicHex(userId, assetSymbol, 36)}`;
+  }
+  return `0x${deterministicHex(userId, assetSymbol, 40)}`;
+}
+
+function qrPayloadFor(assetSymbol: AssetSymbol, address: string): string {
+  if (assetSymbol === "BTC") return `bitcoin:${address}`;
+  if (assetSymbol === "USDC") return `ethereum:${address}@84532`;
+  return `ethereum:${address}@11155111`;
+}
+
+export function defaultDepositAddresses(userId: string): DepositAddress[] {
   return [
     {
       assetSymbol: "BTC",
       network: "Bitcoin",
-      address: "tb1qstudentdemo000000000000000000000000000",
-      qrPayload: "bitcoin:tb1qstudentdemo000000000000000000000000000"
+      address: deterministicAddress(userId, "BTC"),
+      qrPayload: qrPayloadFor("BTC", deterministicAddress(userId, "BTC"))
     },
     {
       assetSymbol: "ETH",
       network: "Ethereum Sepolia",
-      address: "0x1111111111111111111111111111111111111111",
-      qrPayload: "ethereum:0x1111111111111111111111111111111111111111@11155111"
+      address: deterministicAddress(userId, "ETH"),
+      qrPayload: qrPayloadFor("ETH", deterministicAddress(userId, "ETH"))
     },
     {
       assetSymbol: "USDC",
       network: "Base Sepolia",
-      address: "0x2222222222222222222222222222222222222222",
-      qrPayload: "ethereum:0x2222222222222222222222222222222222222222@84532"
+      address: deterministicAddress(userId, "USDC"),
+      qrPayload: qrPayloadFor("USDC", deterministicAddress(userId, "USDC"))
     },
     {
       assetSymbol: "USDT",
       network: "Ethereum Sepolia",
-      address: "0x4444444444444444444444444444444444444444",
-      qrPayload: "ethereum:0x4444444444444444444444444444444444444444@11155111"
+      address: deterministicAddress(userId, "USDT"),
+      qrPayload: qrPayloadFor("USDT", deterministicAddress(userId, "USDT"))
     }
   ];
 }
@@ -96,13 +113,21 @@ export function getWallet(userId: string): Wallet {
       id: createId("wallet"),
       userId,
       fiatCurrency: "USD",
-      depositAddresses: defaultDepositAddresses(),
+      depositAddresses: defaultDepositAddresses(userId),
       balances: [{ assetSymbol: "USDT", available: 0, locked: 0 }]
     };
     db.wallets.push(wallet);
   }
   normalizeWalletFundingAsset(wallet);
   return wallet;
+}
+
+export function activeAssetSymbols(): AssetSymbol[] {
+  return db.assets.filter((asset) => asset.isActive).map((asset) => asset.symbol);
+}
+
+export function isActiveAssetSymbol(value: unknown): value is AssetSymbol {
+  return typeof value === "string" && activeAssetSymbols().includes(value as AssetSymbol);
 }
 
 function normalizeWalletFundingAsset(wallet: Wallet): void {
@@ -119,11 +144,32 @@ function normalizeWalletFundingAsset(wallet: Wallet): void {
   }
 
   const existingSymbols = new Set(wallet.depositAddresses.map((item) => item.assetSymbol));
-  for (const address of defaultDepositAddresses()) {
+  for (const address of defaultDepositAddresses(wallet.userId)) {
     if (!existingSymbols.has(address.assetSymbol)) {
       wallet.depositAddresses.push(address);
     }
   }
+  normalizeSharedDemoAddresses(wallet);
+}
+
+function normalizeSharedDemoAddresses(wallet: Wallet): void {
+  if (wallet.userId === "usr_student") return;
+
+  const sharedDemoAddresses = new Set([
+    "tb1qstudentdemo000000000000000000000000000",
+    "0x1111111111111111111111111111111111111111",
+    "0x2222222222222222222222222222222222222222",
+    "0x3333333333333333333333333333333333333333",
+    "0x4444444444444444444444444444444444444444"
+  ]);
+  const nextDefaults = new Map(defaultDepositAddresses(wallet.userId).map((address) => [address.assetSymbol, address]));
+
+  wallet.depositAddresses = wallet.depositAddresses.map((address) => {
+    if (!sharedDemoAddresses.has(address.address.toLowerCase()) && address.qrPayload !== "ethereum:demo") {
+      return address;
+    }
+    return nextDefaults.get(address.assetSymbol) || address;
+  });
 }
 
 const fiatPriceUsd: Record<FiatCurrency, number> = {

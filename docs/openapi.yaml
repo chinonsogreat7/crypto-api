@@ -1198,7 +1198,7 @@ paths:
           description: Optional transaction type filter.
           schema:
             type: string
-            enum: [buy, sell, swap, deposit, withdrawal]
+            enum: [buy, sell, swap, deposit, withdrawal, transfer]
           example: buy
         - in: query
           name: page
@@ -1278,6 +1278,43 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/DepositResponse"
+  /wallet/transfers:
+    post:
+      tags: [Wallet]
+      summary: Send an internal transfer to another user
+      description: Sends a supported active asset to another customer by email, phone number, user id, or wallet deposit address. Requires transaction PIN and approved KYC.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assetSymbol, amount, recipient, pin]
+              properties:
+                assetSymbol:
+                  type: string
+                  enum: [BTC, ETH, USDC, USDT, BNB, SOL, XRP, ADA, DOGE, AVAX, DOT, LTC, TRX, MATIC, LINK]
+                  example: USDT
+                amount:
+                  type: number
+                  example: 25
+                recipient:
+                  type: string
+                  description: Recipient email, phone number, user id, or wallet deposit address.
+                  example: session-student@cryptoclass.test
+                pin:
+                  type: string
+                  example: "1234"
+      responses:
+        "201":
+          description: Completed internal transfer
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/TransferResponse"
   /wallet/withdrawals:
     post:
       tags: [Wallet]
@@ -1294,6 +1331,7 @@ paths:
               properties:
                 assetSymbol:
                   type: string
+                  enum: [BTC, ETH, USDC, USDT, BNB, SOL, XRP, ADA, DOGE, AVAX, DOT, LTC, TRX, MATIC, LINK]
                   example: ETH
                 amount:
                   type: number
@@ -1328,9 +1366,11 @@ paths:
                   example: swap
                 fromAsset:
                   type: string
+                  enum: [BTC, ETH, USDC, USDT, BNB, SOL, XRP, ADA, DOGE, AVAX, DOT, LTC, TRX, MATIC, LINK]
                   example: ETH
                 toAsset:
                   type: string
+                  enum: [BTC, ETH, USDC, USDT, BNB, SOL, XRP, ADA, DOGE, AVAX, DOT, LTC, TRX, MATIC, LINK]
                   example: USDC
                 fromAmount:
                   type: number
@@ -1531,7 +1571,7 @@ paths:
           name: type
           schema:
             type: string
-            enum: [buy, sell, swap, deposit, withdrawal]
+            enum: [buy, sell, swap, deposit, withdrawal, transfer]
         - in: query
           name: status
           schema:
@@ -2553,6 +2593,58 @@ components:
                 locked: 0
           estimatedCompletionAt: "2026-05-03T14:10:05.000Z"
           pollingUrl: /wallet/transactions/txn_deposit_001
+    TransferResponse:
+      summary: Internal transfer
+      value:
+        data:
+          transfer:
+            reference: CRT-TRF-1780000000000
+            assetSymbol: USDT
+            amount: 25
+            recipient:
+              id: usr_friend
+              fullName: Class Friend
+              email: friend@cryptoclass.test
+              phone: "+2348010000003"
+          transaction:
+            id: txn_transfer_sender
+            userId: usr_student
+            type: transfer
+            status: completed
+            fromAsset: USDT
+            toAsset: USDT
+            fromAmount: 25
+            toAmount: 25
+            feeAmount: 0
+            rate: 1
+            reference: CRT-TRF-1780000000000
+            note: Internal transfer to friend@cryptoclass.test
+            createdAt: "2026-05-03T14:25:00.000Z"
+            completedAt: "2026-05-03T14:25:00.000Z"
+          recipientTransaction:
+            id: txn_transfer_recipient
+            userId: usr_friend
+            type: transfer
+            status: completed
+            fromAsset: USDT
+            toAsset: USDT
+            fromAmount: 25
+            toAmount: 25
+            feeAmount: 0
+            rate: 1
+            reference: CRT-TRF-1780000000000
+            note: Internal transfer from student@cryptoclass.test
+            createdAt: "2026-05-03T14:25:00.000Z"
+            completedAt: "2026-05-03T14:25:00.000Z"
+          wallet:
+            id: wallet_student
+            userId: usr_student
+            fiatCurrency: USD
+            depositAddresses: []
+            balances:
+              - assetSymbol: USDT
+                available: 975
+                locked: 0
     WithdrawalResponse:
       summary: Withdrawal request
       value:

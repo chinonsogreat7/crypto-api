@@ -18,7 +18,7 @@ export type AssetSymbol =
   | "LINK";
 export type KycStatus = "not_started" | "pending" | "approved" | "rejected";
 export type VerificationTier = "starter" | "pending_review" | "verified";
-export type TransactionType = "buy" | "sell" | "swap" | "deposit" | "withdrawal";
+export type TransactionType = "buy" | "sell" | "swap" | "deposit" | "withdrawal" | "transfer";
 export type TransactionStatus = "pending" | "completed" | "failed" | "cancelled" | "requires_review";
 export type UserRole = "customer" | "admin";
 
@@ -143,8 +143,8 @@ export interface FeeSettings {
 export interface Quote {
   id: string;
   type: "buy" | "sell" | "swap";
-  fromAsset: AssetSymbol | FiatCurrency;
-  toAsset: AssetSymbol | FiatCurrency;
+  fromAsset: AssetSymbol;
+  toAsset: AssetSymbol;
   fromAmount: number;
   toAmount: number;
   rate: number;

@@ -102,6 +102,7 @@ For classroom progress reports, use [STUDENT_PROGRESS_TRACKER.md](./STUDENT_PROG
 | Portfolio chart | `GET /wallet/portfolio/history` |
 | Deposit or QR code | `GET /wallet/deposit-addresses`, `GET /wallet/deposit-addresses/:symbol` |
 | Mock fund wallet | `POST /wallet/deposit/simulate` |
+| Internal transfer | `POST /wallet/transfers` |
 | Withdrawal | `POST /wallet/withdrawals` |
 | Buy, sell, swap preview | `POST /trade/quotes` |
 | Buy, sell, swap confirmation | `POST /trade/execute` |
@@ -558,6 +559,24 @@ Content-Type: application/json
 The response includes a `pollingUrl`. Poll that transaction until its `status` changes from `pending` to `completed`; then refresh `GET /wallet` to show the credited balance.
 
 `GET /wallet/deposit-addresses/:symbol` returns a demo address and QR payload for a crypto deposit screen. These are not real custody addresses.
+
+`POST /wallet/transfers` sends an active supported asset to another customer inside the sandbox. The recipient can be their email, phone number, user id, or wallet deposit address. This requires approved KYC, transaction PIN, enough available balance, and an `Idempotency-Key` for safe retries.
+
+```http
+POST /wallet/transfers
+Authorization: Bearer demo-user-token
+Idempotency-Key: class-demo-transfer-001
+Content-Type: application/json
+
+{
+  "assetSymbol": "USDT",
+  "amount": 25,
+  "recipient": "friend@cryptoclass.test",
+  "pin": "1234"
+}
+```
+
+The response returns the sender transaction, a recipient transaction, the shared transfer reference, and the updated sender wallet.
 
 ## Withdrawal Flow
 

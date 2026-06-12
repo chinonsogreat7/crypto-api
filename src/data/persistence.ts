@@ -172,8 +172,8 @@ export async function loadDatabase(): Promise<Database> {
     quotes: quotes.map((quote) => ({
       id: quote.id,
       type: quote.type as "buy" | "sell" | "swap",
-      fromAsset: quote.fromAsset as AssetSymbol | FiatCurrency,
-      toAsset: quote.toAsset as AssetSymbol | FiatCurrency,
+      fromAsset: quote.fromAsset as AssetSymbol,
+      toAsset: quote.toAsset as AssetSymbol,
       fromAmount: quote.fromAmount,
       toAmount: quote.toAmount,
       rate: quote.rate,
