@@ -1,5 +1,5 @@
 import express, { type Request } from "express";
-import { clone, createId, db, publicUser } from "../data/store";
+import { clone, createId, db, defaultDepositAddresses, publicUser } from "../data/store";
 import { requireAuth } from "../middleware/auth";
 import { idempotency } from "../middleware/idempotency";
 import { rateLimit } from "../middleware/rate-limit";
@@ -349,15 +349,8 @@ authRouter.post("/register", authLimiter, (req: Request<unknown, unknown, Regist
     id: createId("wallet"),
     userId: user.id,
     fiatCurrency: "USD",
-    depositAddresses: [
-      {
-        assetSymbol: "USDC",
-        network: "Base Sepolia",
-        address: "0x3333333333333333333333333333333333333333",
-        qrPayload: "ethereum:0x3333333333333333333333333333333333333333@84532"
-      }
-    ],
-    balances: [{ assetSymbol: "USD", available: 1000, locked: 0 }]
+    depositAddresses: defaultDepositAddresses(),
+    balances: [{ assetSymbol: "USDT", available: 1000, locked: 0 }]
   });
 
   return created(res, registrationResponse(user));

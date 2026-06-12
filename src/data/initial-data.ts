@@ -278,10 +278,16 @@ export const initialData: Database = {
           network: "Base Sepolia",
           address: "0x2222222222222222222222222222222222222222",
           qrPayload: "ethereum:0x2222222222222222222222222222222222222222@84532"
+        },
+        {
+          assetSymbol: "USDT",
+          network: "Ethereum Sepolia",
+          address: "0x4444444444444444444444444444444444444444",
+          qrPayload: "ethereum:0x4444444444444444444444444444444444444444@11155111"
         }
       ],
       balances: [
-        { assetSymbol: "USD", available: 2500, locked: 0 },
+        { assetSymbol: "USDT", available: 2500, locked: 0 },
         { assetSymbol: "BTC", available: 0.035, locked: 0 },
         { assetSymbol: "ETH", available: 1.25, locked: 0 },
         { assetSymbol: "USDC", available: 420, locked: 0 },
@@ -298,7 +304,7 @@ export const initialData: Database = {
       userId: "usr_student",
       type: "buy",
       status: "completed",
-      fromAsset: "USD",
+      fromAsset: "USDT",
       toAsset: "BTC",
       fromAmount: 250,
       toAmount: 0.00362,

@@ -540,7 +540,7 @@ Authorization: Bearer demo-user-token
 
 The API always creates in-app notifications in `GET /me/notifications`. Real Expo push delivery is optional and only runs when `ENABLE_PUSH_NOTIFICATIONS=true` is set on the backend. Current push triggers include KYC review, withdrawal review, completed deposits, completed trades, and triggered price alerts.
 
-`GET /wallet` returns balances, `portfolioValueUsd`, and a display-currency portfolio value using the user's selected `fiatCurrency` from settings. For example, if settings use `EUR`, the response includes `portfolioValue` and `portfolioCurrency: "EUR"` while still keeping the USD value for compatibility.
+`GET /wallet` returns crypto/stablecoin balances, `portfolioValueUsd`, and a display-currency portfolio value using the user's selected `fiatCurrency` from settings. For example, if settings use `EUR`, the response includes `portfolioValue` and `portfolioCurrency: "EUR"` while still keeping the USD valuation for compatibility. `fiatCurrency: "USD"` is only a display/base currency, not a depositable wallet asset.
 
 `POST /wallet/deposit/simulate` creates a pending fake USDT deposit so students can test polling and status updates without real payments.
 

@@ -2412,12 +2412,24 @@ components:
             userId: usr_student
             fiatCurrency: USD
             depositAddresses:
+              - assetSymbol: BTC
+                network: Bitcoin
+                address: tb1qstudentdemo000000000000000000000000000
+                qrPayload: bitcoin:tb1qstudentdemo000000000000000000000000000
+              - assetSymbol: ETH
+                network: Ethereum Sepolia
+                address: "0x1111111111111111111111111111111111111111"
+                qrPayload: "ethereum:0x1111111111111111111111111111111111111111@11155111"
               - assetSymbol: USDC
                 network: Base Sepolia
-                address: "0x3333333333333333333333333333333333333333"
-                qrPayload: "ethereum:0x3333333333333333333333333333333333333333@84532"
+                address: "0x2222222222222222222222222222222222222222"
+                qrPayload: "ethereum:0x2222222222222222222222222222222222222222@84532"
+              - assetSymbol: USDT
+                network: Ethereum Sepolia
+                address: "0x4444444444444444444444444444444444444444"
+                qrPayload: "ethereum:0x4444444444444444444444444444444444444444@11155111"
             balances:
-              - assetSymbol: USD
+              - assetSymbol: USDT
                 available: 1000
                 locked: 0
               - assetSymbol: ETH
@@ -2443,20 +2455,32 @@ components:
       summary: Deposit addresses
       value:
         data:
+          - assetSymbol: BTC
+            network: Bitcoin
+            address: tb1qstudentdemo000000000000000000000000000
+            qrPayload: bitcoin:tb1qstudentdemo000000000000000000000000000
+          - assetSymbol: ETH
+            network: Ethereum Sepolia
+            address: "0x1111111111111111111111111111111111111111"
+            qrPayload: "ethereum:0x1111111111111111111111111111111111111111@11155111"
           - assetSymbol: USDC
             network: Base Sepolia
-            address: "0x3333333333333333333333333333333333333333"
-            qrPayload: "ethereum:0x3333333333333333333333333333333333333333@84532"
+            address: "0x2222222222222222222222222222222222222222"
+            qrPayload: "ethereum:0x2222222222222222222222222222222222222222@84532"
+          - assetSymbol: USDT
+            network: Ethereum Sepolia
+            address: "0x4444444444444444444444444444444444444444"
+            qrPayload: "ethereum:0x4444444444444444444444444444444444444444@11155111"
         meta:
-          count: 1
+          count: 4
     DepositAddressResponse:
       summary: Deposit address
       value:
         data:
-          assetSymbol: USDC
-          network: Base Sepolia
-          address: "0x3333333333333333333333333333333333333333"
-          qrPayload: "ethereum:0x3333333333333333333333333333333333333333@84532"
+          assetSymbol: USDT
+          network: Ethereum Sepolia
+          address: "0x4444444444444444444444444444444444444444"
+          qrPayload: "ethereum:0x4444444444444444444444444444444444444444@11155111"
     TransactionResponse:
       summary: Transaction detail
       value:
@@ -2518,7 +2542,11 @@ components:
             id: wallet_student
             userId: usr_student
             fiatCurrency: USD
-            depositAddresses: []
+            depositAddresses:
+              - assetSymbol: USDT
+                network: Ethereum Sepolia
+                address: "0x4444444444444444444444444444444444444444"
+                qrPayload: "ethereum:0x4444444444444444444444444444444444444444@11155111"
             balances:
               - assetSymbol: USDT
                 available: 500
@@ -2595,7 +2623,11 @@ components:
             id: wallet_student
             userId: usr_student
             fiatCurrency: USD
-            depositAddresses: []
+            depositAddresses:
+              - assetSymbol: USDT
+                network: Ethereum Sepolia
+                address: "0x4444444444444444444444444444444444444444"
+                qrPayload: "ethereum:0x4444444444444444444444444444444444444444@11155111"
             balances:
               - assetSymbol: ETH
                 available: 0.15
@@ -2659,9 +2691,13 @@ components:
             id: wallet_student
             userId: usr_student
             fiatCurrency: USD
-            depositAddresses: []
+            depositAddresses:
+              - assetSymbol: USDT
+                network: Ethereum Sepolia
+                address: "0x4444444444444444444444444444444444444444"
+                qrPayload: "ethereum:0x4444444444444444444444444444444444444444@11155111"
             balances:
-              - assetSymbol: USD
+              - assetSymbol: USDT
                 available: 1000
                 locked: 0
           portfolioValueUsd: 1000

@@ -7,12 +7,42 @@ import type {
   Quote,
   Transaction,
   User,
-  Wallet
+  Wallet,
+  DepositAddress
 } from "../models";
 import { verificationProfileForUser } from "../services/verification";
 import { initialData } from "./initial-data";
 
 export const db: Database = clone(initialData);
+
+export function defaultDepositAddresses(): DepositAddress[] {
+  return [
+    {
+      assetSymbol: "BTC",
+      network: "Bitcoin",
+      address: "tb1qstudentdemo000000000000000000000000000",
+      qrPayload: "bitcoin:tb1qstudentdemo000000000000000000000000000"
+    },
+    {
+      assetSymbol: "ETH",
+      network: "Ethereum Sepolia",
+      address: "0x1111111111111111111111111111111111111111",
+      qrPayload: "ethereum:0x1111111111111111111111111111111111111111@11155111"
+    },
+    {
+      assetSymbol: "USDC",
+      network: "Base Sepolia",
+      address: "0x2222222222222222222222222222222222222222",
+      qrPayload: "ethereum:0x2222222222222222222222222222222222222222@84532"
+    },
+    {
+      assetSymbol: "USDT",
+      network: "Ethereum Sepolia",
+      address: "0x4444444444444444444444444444444444444444",
+      qrPayload: "ethereum:0x4444444444444444444444444444444444444444@11155111"
+    }
+  ];
+}
 
 export function replaceDatabase(nextDb: Database): void {
   db.users = nextDb.users;
@@ -66,19 +96,34 @@ export function getWallet(userId: string): Wallet {
       id: createId("wallet"),
       userId,
       fiatCurrency: "USD",
-      depositAddresses: [
-        {
-          assetSymbol: "USDC",
-          network: "Base Sepolia",
-          address: `0x${randomUUID().replace(/-/g, "").slice(0, 40).padEnd(40, "0")}`,
-          qrPayload: "ethereum:demo"
-        }
-      ],
-      balances: [{ assetSymbol: "USD", available: 0, locked: 0 }]
+      depositAddresses: defaultDepositAddresses(),
+      balances: [{ assetSymbol: "USDT", available: 0, locked: 0 }]
     };
     db.wallets.push(wallet);
   }
+  normalizeWalletFundingAsset(wallet);
   return wallet;
+}
+
+function normalizeWalletFundingAsset(wallet: Wallet): void {
+  const usdBalance = wallet.balances.find((item) => item.assetSymbol === "USD");
+  if (usdBalance) {
+    const usdtBalance = wallet.balances.find((item) => item.assetSymbol === "USDT");
+    if (usdtBalance) {
+      usdtBalance.available += usdBalance.available;
+      usdtBalance.locked += usdBalance.locked;
+    } else {
+      wallet.balances.push({ assetSymbol: "USDT", available: usdBalance.available, locked: usdBalance.locked });
+    }
+    wallet.balances = wallet.balances.filter((item) => item.assetSymbol !== "USD");
+  }
+
+  const existingSymbols = new Set(wallet.depositAddresses.map((item) => item.assetSymbol));
+  for (const address of defaultDepositAddresses()) {
+    if (!existingSymbols.has(address.assetSymbol)) {
+      wallet.depositAddresses.push(address);
+    }
+  }
 }
 
 const fiatPriceUsd: Record<FiatCurrency, number> = {
