@@ -425,6 +425,17 @@ authRouter.post("/2fa/setup", requireAuth, (req, res) => {
   });
 });
 
+authRouter.get("/2fa/status", requireAuth, (req, res) => {
+  const recoveryCodesRemaining = recoveryCodeCount(req.user);
+
+  return ok(res, {
+    twoFactorEnabled: req.user.twoFactorEnabled,
+    twoFactorSetupStarted: Boolean(req.user.twoFactorSecret),
+    recoveryCodesConfigured: recoveryCodesRemaining > 0,
+    recoveryCodesRemaining
+  });
+});
+
 authRouter.post("/2fa/enable", requireAuth, (req: Request<unknown, unknown, { code?: string }>, res) => {
   if (!req.user.twoFactorSecret) {
     return badRequest(res, "Run /auth/2fa/setup before enabling 2FA.", "TWO_FACTOR_SETUP_REQUIRED");

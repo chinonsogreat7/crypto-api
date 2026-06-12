@@ -199,6 +199,10 @@ async function main() {
     if (!Array.isArray(enableBody.data.recoveryCodes) || enableBody.data.recoveryCodes.length !== 8) {
       throw new Error("2FA enable did not return recovery codes");
     }
+    const twoFactorStatusBody = await request("/auth/2fa/status", { headers: userHeaders });
+    if (!twoFactorStatusBody.data.twoFactorEnabled || !twoFactorStatusBody.data.recoveryCodesConfigured || twoFactorStatusBody.data.recoveryCodesRemaining !== 8) {
+      throw new Error("2FA status did not return enabled recovery-code metadata");
+    }
 
     const regeneratedCodesBody = await request("/auth/2fa/recovery-codes/regenerate", {
       method: "POST",
@@ -283,7 +287,7 @@ async function main() {
       headers: { ...userHeaders, "content-type": "application/json" },
       body: JSON.stringify({ fiatCurrency: "EUR" })
     });
-    await request("/me/devices", {
+    const registeredDeviceBody = await request("/me/devices", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
       body: JSON.stringify({
@@ -291,11 +295,23 @@ async function main() {
         platform: "ios"
       })
     });
+    const devicesBody = await request("/me/devices", { headers: userHeaders });
+    if (!Array.isArray(devicesBody.data) || !devicesBody.data.some((device: { id: string }) => device.id === registeredDeviceBody.data.id)) {
+      throw new Error("device list did not include the registered device");
+    }
     await expectBadRequest("/me/devices", {
       method: "POST",
       headers: { ...userHeaders, "content-type": "application/json" },
       body: JSON.stringify({ expoPushToken: "not-a-token", platform: "ios" })
     }, "invalid push token");
+    await request(`/me/devices/${registeredDeviceBody.data.id}`, {
+      method: "DELETE",
+      headers: userHeaders
+    });
+    const devicesAfterDeleteBody = await request("/me/devices", { headers: userHeaders });
+    if (devicesAfterDeleteBody.data.some((device: { id: string }) => device.id === registeredDeviceBody.data.id)) {
+      throw new Error("deleted device still appeared in device list");
+    }
     await request("/me/watchlist", { headers: userHeaders });
     await expectBadRequest("/me/watchlist/not-a-symbol", {
       method: "POST",

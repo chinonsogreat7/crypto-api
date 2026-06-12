@@ -108,7 +108,7 @@ List responses include `meta` with the request ID. Paginated list responses also
 | Profile | `GET /me`, `PATCH /me` |
 | Settings | `GET /me/settings`, `PATCH /me/settings`, `PATCH /me/pin` |
 | Price alerts | `GET /me/price-alerts`, `POST /me/price-alerts`, `PATCH /me/price-alerts/:alertId`, `DELETE /me/price-alerts/:alertId` |
-| Push token registration | `POST /me/devices` |
+| Push devices | `GET /me/devices`, `POST /me/devices`, `DELETE /me/devices/:deviceId` |
 | Notifications | `GET /me/notifications`, `PATCH /me/notifications/:notificationId/read`, `PATCH /me/notifications/read-all` |
 | Admin dashboard | `GET /admin/dashboard` |
 | Admin users | `GET /admin/users`, `GET /admin/users/:userId` |
@@ -290,6 +290,24 @@ The enable response returns one-time recovery codes. Show them once and ask the 
     "enabled": true,
     "recoveryCodes": ["A1B2C-D3E4F", "8A9B0-C1D2E"],
     "recoveryCodeCount": 8
+  }
+}
+```
+
+The API stores recovery codes as hashes, so it cannot return the original codes later. Use the status endpoint to decide what to show in the security screen:
+
+```http
+GET /auth/2fa/status
+Authorization: Bearer demo-user-token
+```
+
+```json
+{
+  "data": {
+    "twoFactorEnabled": true,
+    "twoFactorSetupStarted": true,
+    "recoveryCodesConfigured": true,
+    "recoveryCodesRemaining": 8
   }
 }
 ```
@@ -502,6 +520,20 @@ Content-Type: application/json
   "expoPushToken": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
   "platform": "ios"
 }
+```
+
+List registered devices:
+
+```http
+GET /me/devices
+Authorization: Bearer demo-user-token
+```
+
+Remove a device when a user logs out of a device or disables push on that device:
+
+```http
+DELETE /me/devices/device_abc123
+Authorization: Bearer demo-user-token
 ```
 
 The API always creates in-app notifications in `GET /me/notifications`. Real Expo push delivery is optional and only runs when `ENABLE_PUSH_NOTIFICATIONS=true` is set on the backend. Current push triggers include KYC review, withdrawal review, completed deposits, completed trades, and triggered price alerts.

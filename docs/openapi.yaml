@@ -236,6 +236,19 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/TwoFactorSetupResponse"
+  /auth/2fa/status:
+    get:
+      tags: [Auth]
+      summary: Get authenticator 2FA and recovery-code status
+      description: Returns safe metadata only. Recovery codes are shown once on enable/regenerate and are not readable later because the API stores only hashed versions.
+      responses:
+        "200":
+          description: 2FA status
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/TwoFactorStatusResponse"
   /auth/2fa/enable:
     post:
       tags: [Auth]
@@ -836,6 +849,17 @@ paths:
                 success:
                   $ref: "#/components/examples/UpdatedResponse"
   /me/devices:
+    get:
+      tags: [Profile]
+      summary: List registered devices
+      responses:
+        "200":
+          description: Registered push devices for the current user
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/DeviceListResponse"
     post:
       tags: [Profile]
       summary: Register an Expo push token
@@ -862,6 +886,25 @@ paths:
               examples:
                 success:
                   $ref: "#/components/examples/DeviceTokenResponse"
+  /me/devices/{deviceId}:
+    delete:
+      tags: [Profile]
+      summary: Remove a registered device
+      parameters:
+        - in: path
+          name: deviceId
+          required: true
+          schema:
+            type: string
+          example: device_abc123
+      responses:
+        "200":
+          description: Device removed
+          content:
+            application/json:
+              examples:
+                success:
+                  $ref: "#/components/examples/DeviceDeletedResponse"
   /me/watchlist:
     get:
       tags: [Profile]
@@ -1919,6 +1962,14 @@ components:
           secret: JBSWY3DPEHPK3PXP
           otpauthUri: otpauth://totp/CryptoClass%3Astudent%40cryptoclass.test?secret=JBSWY3DPEHPK3PXP&issuer=CryptoClass&algorithm=SHA1&digits=6&period=30
           enabled: false
+    TwoFactorStatusResponse:
+      summary: 2FA status
+      value:
+        data:
+          twoFactorEnabled: true
+          twoFactorSetupStarted: true
+          recoveryCodesConfigured: true
+          recoveryCodesRemaining: 8
     TwoFactorEnabledResponse:
       summary: 2FA enabled
       value:
@@ -2333,6 +2384,25 @@ components:
           platform: ios
           createdAt: "2026-05-03T14:30:00.000Z"
           lastSeenAt: "2026-05-03T14:30:00.000Z"
+    DeviceListResponse:
+      summary: Registered devices
+      value:
+        data:
+          - id: device_abc123
+            userId: usr_student
+            expoPushToken: ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+            platform: ios
+            createdAt: "2026-05-03T14:30:00.000Z"
+            lastSeenAt: "2026-05-03T14:30:00.000Z"
+        meta:
+          count: 1
+          pushNotificationsEnabled: true
+    DeviceDeletedResponse:
+      summary: Device deleted
+      value:
+        data:
+          deleted: true
+          deviceId: device_abc123
     WalletResponse:
       summary: Wallet with balances
       value:

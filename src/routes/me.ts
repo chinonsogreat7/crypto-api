@@ -115,6 +115,14 @@ meRouter.patch("/pin", (req: Request<unknown, unknown, { currentPin?: string; ne
   return ok(res, { updated: true });
 });
 
+meRouter.get("/devices", (req, res) => {
+  const devices = db.deviceTokens.filter((device) => device.userId === req.user.id);
+  return ok(res, clone(devices), {
+    count: devices.length,
+    pushNotificationsEnabled: req.user.settings.pushNotifications
+  });
+});
+
 meRouter.post("/devices", (req: Request<unknown, unknown, Partial<DeviceBody>>, res) => {
   const { expoPushToken, platform } = req.body;
 
@@ -133,6 +141,16 @@ meRouter.post("/devices", (req: Request<unknown, unknown, Partial<DeviceBody>>, 
   });
 
   return ok(res, clone(device));
+});
+
+meRouter.delete("/devices/:deviceId", (req: Request<{ deviceId: string }>, res) => {
+  const device = db.deviceTokens.find((item) => item.id === req.params.deviceId && item.userId === req.user.id);
+  if (!device) {
+    return notFound(res, "Device was not found.", "DEVICE_NOT_FOUND");
+  }
+
+  db.deviceTokens = db.deviceTokens.filter((item) => item.id !== device.id);
+  return ok(res, { deleted: true, deviceId: device.id });
 });
 
 meRouter.get("/watchlist", (req, res) => {
