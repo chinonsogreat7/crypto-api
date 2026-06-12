@@ -87,6 +87,15 @@ COINGECKO_API_KEY=your_demo_api_key
 
 `MARKET_PRICE_SOURCE=coingecko` is the default. The API falls back to the classroom simulator if CoinGecko is unavailable. Set `MARKET_PRICE_SOURCE=simulated` only when you intentionally want seeded demo prices instead of real market prices.
 
+Optional token lifetime settings:
+
+```text
+ACCESS_TOKEN_TTL_SECONDS=86400
+REFRESH_TOKEN_TTL_SECONDS=2592000
+```
+
+`ACCESS_TOKEN_TTL_SECONDS` defaults to 24 hours for classroom convenience. `REFRESH_TOKEN_TTL_SECONDS` defaults to 30 days.
+
 Optional Expo push delivery:
 
 ```text

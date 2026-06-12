@@ -190,7 +190,7 @@ Success response returns the normal login session:
     "token": "demo-token",
     "refreshToken": "demo-refresh-token",
     "tokenType": "Bearer",
-    "expiresInSeconds": 900
+    "expiresInSeconds": 86400
   }
 }
 ```
@@ -457,4 +457,3 @@ Logged in
 - Show attempts remaining after invalid 2FA codes.
 - Let the user switch from authenticator code to recovery code.
 - Disable 2FA only after password plus code/recovery code confirmation.
-
