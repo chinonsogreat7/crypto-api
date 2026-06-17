@@ -558,7 +558,7 @@ Content-Type: application/json
 
 The response includes a `pollingUrl`. Poll that transaction until its `status` changes from `pending` to `completed`; then refresh `GET /wallet` to show the credited balance.
 
-`GET /wallet/deposit-addresses/:symbol` returns a demo address and QR payload for a crypto deposit screen. These are not real custody addresses.
+`GET /wallet/deposit-addresses` returns one demo address for every active supported crypto asset, even when the wallet balance for that asset is zero. Balances show what the user currently holds; deposit addresses show what the user can deposit. `GET /wallet/deposit-addresses/:symbol` returns the address and QR payload for one asset. These are not real custody addresses.
 
 `POST /wallet/transfers` sends an active supported asset to another customer inside the sandbox. The recipient can be their email, phone number, user id, or wallet deposit address. This requires approved KYC, transaction PIN, enough available balance, and an `Idempotency-Key` for safe retries.
 

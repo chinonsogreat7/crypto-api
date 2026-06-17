@@ -2507,6 +2507,18 @@ components:
                 network: Ethereum Sepolia
                 address: "0x4444444444444444444444444444444444444444"
                 qrPayload: "ethereum:0x4444444444444444444444444444444444444444@11155111"
+              - assetSymbol: SOL
+                network: Solana Devnet
+                address: SoLfb8e59547894a237580a97fbbf79c897377bcc9d6
+                qrPayload: solana:SoLfb8e59547894a237580a97fbbf79c897377bcc9d6
+              - assetSymbol: MATIC
+                network: Polygon Amoy
+                address: "0x1acab62fd307828ebd8b0ecc6676672cfc5103a7"
+                qrPayload: "ethereum:0x1acab62fd307828ebd8b0ecc6676672cfc5103a7@80002"
+              - assetSymbol: LINK
+                network: Ethereum Sepolia
+                address: "0x7bb297e895ecae9641fbfac0aa1fbd99f052a8c2"
+                qrPayload: "ethereum:0x7bb297e895ecae9641fbfac0aa1fbd99f052a8c2@11155111"
             balances:
               - assetSymbol: USDT
                 available: 1000
@@ -2550,8 +2562,52 @@ components:
             network: Ethereum Sepolia
             address: "0x4444444444444444444444444444444444444444"
             qrPayload: "ethereum:0x4444444444444444444444444444444444444444@11155111"
+          - assetSymbol: BNB
+            network: BNB Smart Chain Testnet
+            address: "0xbc8882b5571f3a3cc2bfe9384aaea81eb1b17ba9"
+            qrPayload: "ethereum:0xbc8882b5571f3a3cc2bfe9384aaea81eb1b17ba9@97"
+          - assetSymbol: SOL
+            network: Solana Devnet
+            address: SoLfb8e59547894a237580a97fbbf79c897377bcc9d6
+            qrPayload: solana:SoLfb8e59547894a237580a97fbbf79c897377bcc9d6
+          - assetSymbol: XRP
+            network: XRP Ledger Testnet
+            address: r18d6aefa8d10f74f36760107f014e9c39
+            qrPayload: ripple:r18d6aefa8d10f74f36760107f014e9c39
+          - assetSymbol: ADA
+            network: Cardano Preprod
+            address: addr_test1c80f0f1de41398a57ac461d20c724ebe3e7df82b19
+            qrPayload: cardano:addr_test1c80f0f1de41398a57ac461d20c724ebe3e7df82b19
+          - assetSymbol: DOGE
+            network: Dogecoin Testnet
+            address: n8434d35c29f44ac1daf2e26a5fb04ae20
+            qrPayload: dogecoin:n8434d35c29f44ac1daf2e26a5fb04ae20
+          - assetSymbol: AVAX
+            network: Avalanche Fuji
+            address: "0x4afd823d2c56683c6766f28dc565017e75ed843a"
+            qrPayload: "ethereum:0x4afd823d2c56683c6766f28dc565017e75ed843a@43113"
+          - assetSymbol: DOT
+            network: Polkadot Westend
+            address: 5e8eb21ddc9a33903888aa94b89bb752b8cb260589c87bab
+            qrPayload: polkadot:5e8eb21ddc9a33903888aa94b89bb752b8cb260589c87bab
+          - assetSymbol: LTC
+            network: Litecoin Testnet
+            address: tltc1q9176190e16ff1ec5b8fce3b3e20effc7bc
+            qrPayload: litecoin:tltc1q9176190e16ff1ec5b8fce3b3e20effc7bc
+          - assetSymbol: TRX
+            network: TRON Nile
+            address: Tc6f5a1a41b41210c2a9e7aa4cda7f4cb1
+            qrPayload: tron:Tc6f5a1a41b41210c2a9e7aa4cda7f4cb1
+          - assetSymbol: MATIC
+            network: Polygon Amoy
+            address: "0x1acab62fd307828ebd8b0ecc6676672cfc5103a7"
+            qrPayload: "ethereum:0x1acab62fd307828ebd8b0ecc6676672cfc5103a7@80002"
+          - assetSymbol: LINK
+            network: Ethereum Sepolia
+            address: "0x7bb297e895ecae9641fbfac0aa1fbd99f052a8c2"
+            qrPayload: "ethereum:0x7bb297e895ecae9641fbfac0aa1fbd99f052a8c2@11155111"
         meta:
-          count: 4
+          count: 15
     DepositAddressResponse:
       summary: Deposit address
       value:

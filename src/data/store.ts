@@ -15,50 +15,78 @@ import { initialData } from "./initial-data";
 
 export const db: Database = clone(initialData);
 
+const depositNetworkByAsset: Record<AssetSymbol, string> = {
+  BTC: "Bitcoin Testnet",
+  ETH: "Ethereum Sepolia",
+  USDC: "Base Sepolia",
+  USDT: "Ethereum Sepolia",
+  BNB: "BNB Smart Chain Testnet",
+  SOL: "Solana Devnet",
+  XRP: "XRP Ledger Testnet",
+  ADA: "Cardano Preprod",
+  DOGE: "Dogecoin Testnet",
+  AVAX: "Avalanche Fuji",
+  DOT: "Polkadot Westend",
+  LTC: "Litecoin Testnet",
+  TRX: "TRON Nile",
+  MATIC: "Polygon Amoy",
+  LINK: "Ethereum Sepolia"
+};
+
 function deterministicHex(userId: string, assetSymbol: string, length: number): string {
   return createHash("sha256").update(`${userId}:${assetSymbol}:deposit-address`).digest("hex").slice(0, length);
 }
 
 function deterministicAddress(userId: string, assetSymbol: AssetSymbol): string {
-  if (assetSymbol === "BTC") {
-    return `tb1q${deterministicHex(userId, assetSymbol, 36)}`;
+  const hex = deterministicHex(userId, assetSymbol, 48);
+  switch (assetSymbol) {
+    case "BTC":
+      return `tb1q${hex.slice(0, 36)}`;
+    case "LTC":
+      return `tltc1q${hex.slice(0, 34)}`;
+    case "DOGE":
+      return `n${hex.slice(0, 33)}`;
+    case "XRP":
+      return `r${hex.slice(0, 33)}`;
+    case "TRX":
+      return `T${hex.slice(0, 33)}`;
+    case "SOL":
+      return `SoL${hex.slice(0, 41)}`;
+    case "ADA":
+      return `addr_test1${hex.slice(0, 42)}`;
+    case "DOT":
+      return `5${hex.slice(0, 47)}`;
+    default:
+      return `0x${hex.slice(0, 40)}`;
   }
-  return `0x${deterministicHex(userId, assetSymbol, 40)}`;
 }
 
 function qrPayloadFor(assetSymbol: AssetSymbol, address: string): string {
   if (assetSymbol === "BTC") return `bitcoin:${address}`;
+  if (assetSymbol === "LTC") return `litecoin:${address}`;
+  if (assetSymbol === "DOGE") return `dogecoin:${address}`;
+  if (assetSymbol === "XRP") return `ripple:${address}`;
+  if (assetSymbol === "TRX") return `tron:${address}`;
+  if (assetSymbol === "SOL") return `solana:${address}`;
+  if (assetSymbol === "ADA") return `cardano:${address}`;
+  if (assetSymbol === "DOT") return `polkadot:${address}`;
   if (assetSymbol === "USDC") return `ethereum:${address}@84532`;
+  if (assetSymbol === "BNB") return `ethereum:${address}@97`;
+  if (assetSymbol === "AVAX") return `ethereum:${address}@43113`;
+  if (assetSymbol === "MATIC") return `ethereum:${address}@80002`;
   return `ethereum:${address}@11155111`;
 }
 
 export function defaultDepositAddresses(userId: string): DepositAddress[] {
-  return [
-    {
-      assetSymbol: "BTC",
-      network: "Bitcoin",
-      address: deterministicAddress(userId, "BTC"),
-      qrPayload: qrPayloadFor("BTC", deterministicAddress(userId, "BTC"))
-    },
-    {
-      assetSymbol: "ETH",
-      network: "Ethereum Sepolia",
-      address: deterministicAddress(userId, "ETH"),
-      qrPayload: qrPayloadFor("ETH", deterministicAddress(userId, "ETH"))
-    },
-    {
-      assetSymbol: "USDC",
-      network: "Base Sepolia",
-      address: deterministicAddress(userId, "USDC"),
-      qrPayload: qrPayloadFor("USDC", deterministicAddress(userId, "USDC"))
-    },
-    {
-      assetSymbol: "USDT",
-      network: "Ethereum Sepolia",
-      address: deterministicAddress(userId, "USDT"),
-      qrPayload: qrPayloadFor("USDT", deterministicAddress(userId, "USDT"))
-    }
-  ];
+  return activeAssetSymbols().map((assetSymbol) => {
+    const address = deterministicAddress(userId, assetSymbol);
+    return {
+      assetSymbol,
+      network: depositNetworkByAsset[assetSymbol],
+      address,
+      qrPayload: qrPayloadFor(assetSymbol, address)
+    };
+  });
 }
 
 export function replaceDatabase(nextDb: Database): void {
@@ -160,7 +188,8 @@ function normalizeSharedDemoAddresses(wallet: Wallet): void {
     "0x1111111111111111111111111111111111111111",
     "0x2222222222222222222222222222222222222222",
     "0x3333333333333333333333333333333333333333",
-    "0x4444444444444444444444444444444444444444"
+    "0x4444444444444444444444444444444444444444",
+    "0x549ba2481057fae80ec1d5eb07ce85ac4b14f1a1"
   ]);
   const nextDefaults = new Map(defaultDepositAddresses(wallet.userId).map((address) => [address.assetSymbol, address]));
 
